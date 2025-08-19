@@ -26,7 +26,7 @@ services:
             - redis
             - minio
             - mailpit
-            - rabbitmq
+            - elasticmq
     mysql:
         image: 'mysql/mysql-server:8.0'
         ports:
@@ -95,28 +95,19 @@ services:
             - '${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025'
         networks:
             - sail
-    rabbitmq:
-        image: 'rabbitmq:4-management'
-        hostname: rabbitmq
+    elasticmq:
+        image: 'softwaremill/elasticmq-native:1.6.8'
         ports:
-            - '${FORWARD_RABBITMQ_PORT:-5672}:5672'
-            - '${FORWARD_RABBITMQ_DASHBOARD_PORT:-15672}:15672'
-        environment:
-            RABBITMQ_HOST: '%'
-            RABBITMQ_USER: '${RABBITMQ_USER}'
-            RABBITMQ_PASSWORD: '${RABBITMQ_PASSWORD}'
-            RABBITMQ_VHOST: '${RABBITMQ_VHOST}'
-            RABBITMQ_QUEUE: '${RABBITMQ_QUEUE}'
+            - '${FORWARD_ELASTICMQ_PORT:-9324}:9324'
+            - '${FORWARD_ELASTICMQ_UI_PORT:-9325}:9325'
         volumes:
-            - 'sail-rabbitmq:/var/lib/rabbitmq'
+            - './docker/elasticmq.conf:/opt/elasticmq.conf'
         networks:
             - sail
         healthcheck:
             test:
-                - CMD
-                - rabbitmq-diagnostics
-                - '-q'
-                - ping
+                - CMD-SHELL
+                - 'curl -f http://localhost:9324/ || exit 1'
             retries: 3
             timeout: 5s
 networks:
@@ -128,6 +119,4 @@ volumes:
     sail-redis:
         driver: local
     sail-minio:
-        driver: local
-    sail-rabbitmq:
         driver: local

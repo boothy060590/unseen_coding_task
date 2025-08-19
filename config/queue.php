@@ -54,12 +54,12 @@ return [
 
         'sqs' => [
             'driver' => 'sqs',
-            'key' => env('AWS_ACCESS_KEY_ID'),
-            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'key' => env('SQS_KEY', env('AWS_ACCESS_KEY_ID')),
+            'secret' => env('SQS_SECRET', env('AWS_SECRET_ACCESS_KEY')),
             'prefix' => env('SQS_PREFIX', 'https://sqs.us-east-1.amazonaws.com/your-account-id'),
             'queue' => env('SQS_QUEUE', 'default'),
             'suffix' => env('SQS_SUFFIX'),
-            'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+            'region' => env('SQS_REGION', env('AWS_DEFAULT_REGION', 'us-east-1')),
             'after_commit' => false,
         ],
 
@@ -71,6 +71,7 @@ return [
             'block_for' => null,
             'after_commit' => false,
         ],
+
 
     ],
 

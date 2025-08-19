@@ -1,4 +1,15 @@
 <?php return array (
+  'laravel/horizon' => 
+  array (
+    'aliases' => 
+    array (
+      'Horizon' => 'Laravel\\Horizon\\Horizon',
+    ),
+    'providers' => 
+    array (
+      0 => 'Laravel\\Horizon\\HorizonServiceProvider',
+    ),
+  ),
   'laravel/pail' => 
   array (
     'providers' => 
@@ -11,6 +22,13 @@
     'providers' => 
     array (
       0 => 'Laravel\\Sail\\SailServiceProvider',
+    ),
+  ),
+  'laravel/sanctum' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Laravel\\Sanctum\\SanctumServiceProvider',
     ),
   ),
   'laravel/tinker' => 
@@ -39,6 +57,13 @@
     'providers' => 
     array (
       0 => 'Termwind\\Laravel\\TermwindServiceProvider',
+    ),
+  ),
+  'spatie/laravel-activitylog' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Spatie\\Activitylog\\ActivitylogServiceProvider',
     ),
   ),
 );
