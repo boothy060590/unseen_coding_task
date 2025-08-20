@@ -5,8 +5,31 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Builder;
 use Carbon\Carbon;
 
+/**
+ * Export model for tracking customer export operations
+ *
+ * @property int $id
+ * @property int $user_id
+ * @property string $filename
+ * @property string $type
+ * @property array|null $filters
+ * @property string $format
+ * @property string $status
+ * @property int $total_records
+ * @property string|null $file_path
+ * @property string|null $download_url
+ * @property Carbon|null $expires_at
+ * @property Carbon|null $started_at
+ * @property Carbon|null $completed_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
+ *
+ * @property-read User $user
+ * @property-read string $filters_description
+ */
 class Export extends Model
 {
     use HasFactory;
@@ -41,22 +64,22 @@ class Export extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function scopeForUser($query, User $user)
+    public function scopeForUser(Builder $query, User $user): Builder
     {
         return $query->where('user_id', $user->id);
     }
 
-    public function scopeByStatus($query, string $status)
+    public function scopeByStatus(Builder $query, string $status): Builder
     {
         return $query->where('status', $status);
     }
 
-    public function scopeRecent($query)
+    public function scopeRecent(Builder $query): Builder
     {
         return $query->orderBy('created_at', 'desc');
     }
 
-    public function scopeNotExpired($query)
+    public function scopeNotExpired(Builder $query): Builder
     {
         return $query->where('expires_at', '>', now());
     }
@@ -93,11 +116,11 @@ class Export extends Model
         }
 
         $descriptions = [];
-        
+
         if (isset($this->filters['search'])) {
             $descriptions[] = "Search: '{$this->filters['search']}'";
         }
-        
+
         if (isset($this->filters['organization'])) {
             $descriptions[] = "Organization: '{$this->filters['organization']}'";
         }

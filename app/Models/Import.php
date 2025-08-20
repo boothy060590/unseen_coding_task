@@ -5,7 +5,32 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Builder;
+use Carbon\Carbon;
 
+/**
+ * Import model for tracking customer import operations
+ *
+ * @property int $id
+ * @property int $user_id
+ * @property string $filename
+ * @property string $original_filename
+ * @property string $status
+ * @property int $total_rows
+ * @property int $processed_rows
+ * @property int $successful_rows
+ * @property int $failed_rows
+ * @property array|null $validation_errors
+ * @property array|null $row_errors
+ * @property string|null $file_path
+ * @property Carbon|null $started_at
+ * @property Carbon|null $completed_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
+ *
+ * @property-read User $user
+ * @property-read float $success_rate
+ */
 class Import extends Model
 {
     use HasFactory;
@@ -13,7 +38,7 @@ class Import extends Model
     protected $fillable = [
         'user_id',
         'filename',
-        'original_filename', 
+        'original_filename',
         'status',
         'total_rows',
         'processed_rows',
@@ -41,17 +66,17 @@ class Import extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function scopeForUser($query, User $user)
+    public function scopeForUser(Builder $query, User $user): Builder
     {
         return $query->where('user_id', $user->id);
     }
 
-    public function scopeByStatus($query, string $status)
+    public function scopeByStatus(Builder $query, string $status): Builder
     {
         return $query->where('status', $status);
     }
 
-    public function scopeRecent($query)
+    public function scopeRecent(Builder $query): Builder
     {
         return $query->orderBy('created_at', 'desc');
     }
@@ -76,7 +101,7 @@ class Import extends Model
         if ($this->total_rows === 0) {
             return 0;
         }
-        
+
         return ($this->successful_rows / $this->total_rows) * 100;
     }
 }

@@ -11,14 +11,35 @@ use Spatie\Sluggable\HasSlug;
 use Spatie\Sluggable\SlugOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use Carbon\Carbon;
 
+/**
+ * Customer model representing customer records owned by users
+ *
+ * @property int $id
+ * @property int $user_id
+ * @property string $name
+ * @property string $email
+ * @property string|null $phone
+ * @property string|null $organization
+ * @property string|null $job_title
+ * @property Carbon|null $birthdate
+ * @property string|null $notes
+ * @property string $slug
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
+ *
+ * @property-read User $user
+ */
 class Customer extends Model
 {
-    use HasFactory, HasSlug, LogsActivity;
+    use HasFactory;
+    use HasSlug;
+    use LogsActivity;
 
     protected $fillable = [
         'name',
-        'email', 
+        'email',
         'phone',
         'organization',
         'job_title',

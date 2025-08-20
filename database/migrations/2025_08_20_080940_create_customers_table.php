@@ -29,10 +29,10 @@ return new class extends Migration
             $table->index(['user_id', 'email']);
             $table->index(['user_id', 'organization']);
             $table->index(['user_id', 'created_at']);
-            
+
             // Full-text search on notes
             $table->fullText(['notes', 'name', 'organization']);
-            
+
             // Ensure unique slug per user
             $table->unique(['user_id', 'slug']);
         });

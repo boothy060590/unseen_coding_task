@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<ruleset name="Laravel Code Standards">
+    <description>Laravel coding standards with PSR-12 compliance</description>
+
+    <!-- Include PSR-12 coding standard -->
+    <rule ref="PSR12"/>
+
+    <!-- Paths to scan -->
+    <file>app/</file>
+    <file>database/</file>
+    <file>routes/</file>
+    <file>tests/</file>
+
+    <!-- Paths to ignore -->
+    <exclude-pattern>*/bootstrap/cache/*</exclude-pattern>
+    <exclude-pattern>*/storage/*</exclude-pattern>
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+
+    <!-- Additional rules -->
+    <rule ref="Generic.Arrays.DisallowLongArraySyntax"/>
+    <rule ref="Generic.Commenting.Todo"/>
+    <rule ref="Generic.ControlStructures.InlineControlStructure"/>
+    <rule ref="Generic.Formatting.DisallowMultipleStatements"/>
+    <rule ref="Generic.Functions.FunctionCallArgumentSpacing"/>
+    <rule ref="Generic.NamingConventions.UpperCaseConstantName"/>
+    <rule ref="Generic.PHP.LowerCaseConstant"/>
+    <rule ref="Generic.Strings.UnnecessaryStringConcat"/>
+    <rule ref="Generic.WhiteSpace.ScopeIndent"/>
+    
+    <!-- Ignore line length for readability -->
+    <rule ref="Generic.Files.LineLength">
+        <properties>
+            <property name="lineLimit" value="120"/>
+            <property name="absoluteLineLimit" value="0"/>
+        </properties>
+    </rule>
+</ruleset>
