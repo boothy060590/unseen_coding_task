@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\Repositories\CustomerRepositoryInterface;
 use App\Contracts\Repositories\UserRepositoryInterface;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -18,9 +19,11 @@ class UserService
      * Constructor
      *
      * @param UserRepositoryInterface $userRepository
+     * @param CustomerRepositoryInterface $customerRepository
      */
     public function __construct(
-        private UserRepositoryInterface $userRepository
+        private UserRepositoryInterface $userRepository,
+        private CustomerRepositoryInterface $customerRepository
     ) {}
 
     /**
@@ -221,8 +224,8 @@ class UserService
         return [
             'user' => $user,
             'stats' => [
-                'total_customers' => $user->customers()->count(),
-                'recent_customers' => $user->customers()->latest()->limit(5)->get(),
+                'total_customers' => $this->customerRepository->getCountForUser($user),
+                'recent_customers' => $this->customerRepository->getRecentForUser($user),
                 'recent_activity' => [], // Could integrate with audit repository
             ],
         ];

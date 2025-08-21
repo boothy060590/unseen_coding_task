@@ -169,44 +169,36 @@ class AuditController extends Controller
      */
     private function getFilteredActivities($user, array $filters)
     {
-        $activities = collect();
+        // Convert request filters to repository filters
+        $repositoryFilters = [];
 
-        // Filter by event type
         if (!empty($filters['event'])) {
-            $activities = $this->auditService->getActivitiesByEvent($user, $filters['event']);
+            $repositoryFilters['event'] = $filters['event'];
         }
 
-        // Filter by date range
-        if (!empty($filters['date_from']) && !empty($filters['date_to'])) {
-            $fromDate = Carbon::parse($filters['date_from']);
-            $toDate = Carbon::parse($filters['date_to']);
-
-            if ($activities->isEmpty()) {
-                $activities = $this->auditService->getActivitiesByDateRange($user, $fromDate, $toDate);
-            } else {
-                $activities = $activities->whereBetween('created_at', [$fromDate, $toDate]);
-            }
+        if (!empty($filters['date_from'])) {
+            $repositoryFilters['date_from'] = Carbon::parse($filters['date_from']);
         }
 
-        // Filter by customer
+        if (!empty($filters['date_to'])) {
+            $repositoryFilters['date_to'] = Carbon::parse($filters['date_to']);
+        }
+
         if (!empty($filters['customer_id'])) {
-            $activities = $activities->where('subject_id', $filters['customer_id']);
+            $repositoryFilters['customer_ids'] = [(int) $filters['customer_id']];
         }
 
-        // Text search in descriptions
         if (!empty($filters['search'])) {
-            $searchTerm = strtolower($filters['search']);
-            $activities = $activities->filter(function ($activity) use ($searchTerm) {
-                return str_contains(strtolower($activity->description), $searchTerm) ||
-                       str_contains(strtolower($activity->event), $searchTerm);
-            });
+            $repositoryFilters['search'] = $filters['search'];
         }
 
-        // If no specific filters, get recent activities
-        if ($activities->isEmpty() && empty($filters)) {
-            $activities = $this->auditService->getRecentUserActivities($user, 50);
+        // Set default limit if no specific filters
+        if (empty($repositoryFilters)) {
+            $repositoryFilters['limit'] = 50;
+            $repositoryFilters['sort_by'] = 'created_at';
+            $repositoryFilters['sort_direction'] = 'desc';
         }
 
-        return $activities;
+        return $this->auditService->getFilteredActivities($user, $repositoryFilters);
     }
 }

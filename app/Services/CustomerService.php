@@ -47,7 +47,7 @@ class CustomerService
     }
 
     /**
-     * Create a new customer with validation
+     * Create a new customer (validation handled by FormRequest)
      *
      * @param User $user
      * @param array<string, mixed> $data
@@ -56,10 +56,7 @@ class CustomerService
      */
     public function createCustomer(User $user, array $data): Customer
     {
-        // Business logic validation
-        $this->validateCustomerData($data);
-
-        // Check for duplicate email within user's scope
+        // Check for duplicate email within user's scope (business logic)
         if (isset($data['email']) && $this->emailExistsForUser($user, $data['email'])) {
             throw ValidationException::withMessages([
                 'email' => ['A customer with this email already exists in your account.'],
@@ -88,8 +85,6 @@ class CustomerService
      */
     public function updateCustomer(User $user, Customer $customer, array $data): Customer
     {
-        // Business logic validation
-        $this->validateCustomerData($data, $customer->id);
 
         // Check for duplicate email within user's scope (excluding current customer)
         if (isset($data['email']) &&
@@ -211,34 +206,6 @@ class CustomerService
         return $this->customerRepository->getAllForUser($user, ['organization' => $organization]);
     }
 
-    /**
-     * Validate customer data with business rules
-     *
-     * @param array<string, mixed> $data
-     * @param int|null $excludeId
-     * @return void
-     * @throws ValidationException
-     */
-    private function validateCustomerData(array $data, ?int $excludeId = null): void
-    {
-        // Business validation rules
-        $rules = [
-            'first_name' => 'required|string|max:255|min:1',
-            'last_name' => 'required|string|max:255|min:1',
-            'email' => 'required|email|max:255',
-            'phone' => 'nullable|string|max:20',
-            'organization' => 'nullable|string|max:255',
-            'job_title' => 'nullable|string|max:255',
-            'birthdate' => 'nullable|date|before:today',
-            'notes' => 'nullable|string|max:2000',
-        ];
-
-        $validator = validator($data, $rules);
-
-        if ($validator->fails()) {
-            throw new ValidationException($validator);
-        }
-    }
 
     /**
      * Check if email exists for user

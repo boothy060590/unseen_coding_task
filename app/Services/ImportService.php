@@ -37,7 +37,7 @@ class ImportService
     {
         $imports = $this->importRepository->getPaginatedForUser($user, []);
         $recentImports = $this->importRepository->getRecentForUser($user, 5);
-        $stats = $this->getImportStatistics($user);
+        $stats = $this->getImportStatistics($user, $recentImports);
 
         return [
             'imports' => $imports,
@@ -59,10 +59,10 @@ class ImportService
     {
         // Validate file
         $this->validateImportFile($file);
-        
+
         // Store file
         $filePath = $this->storeImportFile($file, $user);
-        
+
         // Create import record
         $importData = [
             'filename' => $this->generateUniqueFilename($file->getClientOriginalName()),
@@ -107,10 +107,10 @@ class ImportService
      * @return Import
      */
     public function updateProgress(
-        User $user, 
-        Import $import, 
-        int $processedRows, 
-        int $successfulRows, 
+        User $user,
+        Import $import,
+        int $processedRows,
+        int $successfulRows,
         int $failedRows,
         ?array $errors = null
     ): Import {
@@ -172,9 +172,10 @@ class ImportService
      * Get import statistics for a user
      *
      * @param User $user
+     * @param Collection $recentImports
      * @return array<string, mixed>
      */
-    public function getImportStatistics(User $user): array
+    public function getImportStatistics(User $user, Collection $recentImports): array
     {
         $allImports = $this->importRepository->getAllForUser($user, []);
         $completedImports = $this->importRepository->getCompletedForUser($user);
@@ -182,8 +183,8 @@ class ImportService
 
         $totalCustomersImported = $completedImports->sum('successful_rows');
         $totalRowsProcessed = $completedImports->sum('processed_rows');
-        $overallSuccessRate = $totalRowsProcessed > 0 
-            ? ($totalCustomersImported / $totalRowsProcessed) * 100 
+        $overallSuccessRate = $totalRowsProcessed > 0
+            ? ($totalCustomersImported / $totalRowsProcessed) * 100
             : 0;
 
         return [
@@ -192,7 +193,7 @@ class ImportService
             'failed_imports' => $failedImports->count(),
             'total_customers_imported' => $totalCustomersImported,
             'overall_success_rate' => round($overallSuccessRate, 2),
-            'recent_imports' => $this->importRepository->getRecentForUser($user, 5),
+            'recent_imports' => $recentImports,
         ];
     }
 
@@ -306,7 +307,7 @@ class ImportService
     {
         $directory = "imports/user_{$user->id}/" . now()->format('Y/m');
         $filename = $this->generateUniqueFilename($file->getClientOriginalName());
-        
+
         return $file->storeAs($directory, $filename, 'local');
     }
 
@@ -321,7 +322,7 @@ class ImportService
         $extension = pathinfo($originalName, PATHINFO_EXTENSION);
         $name = pathinfo($originalName, PATHINFO_FILENAME);
         $timestamp = now()->format('Y_m_d_H_i_s');
-        
+
         return "{$name}_{$timestamp}." . strtolower($extension);
     }
 

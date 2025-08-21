@@ -8,7 +8,7 @@ use App\Models\User;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
-use Spatie\Activitylog\Models\Activity;
+use App\Models\Activity;
 
 /**
  * Service for managing audit trails using Spatie Activity Log
@@ -61,7 +61,13 @@ class AuditService
     public function getRecentUserActivities(User $user, int $limit = 10, ?string $since = null): Collection
     {
         if ($since) {
-            return $this->auditRepository->getActivitiesSince($user, $since, $limit);
+            $fromDate = \Carbon\Carbon::parse($since);
+            return $this->auditRepository->getAllForUser($user, [
+                'date_from' => $fromDate,
+                'limit' => $limit,
+                'sort_by' => 'created_at',
+                'sort_direction' => 'desc'
+            ]);
         }
         
         return $this->auditRepository->getRecentUserActivities($user, $limit);
@@ -117,7 +123,12 @@ class AuditService
      */
     public function getCustomerActivitySummary(User $user, Customer $customer): array
     {
-        $activities = $this->auditRepository->getCustomerAuditTrail($user, $customer, 1000);
+        // Get activities using getAllForUser with customer filter instead of paginated result
+        $activities = $this->auditRepository->getAllForUser($user, [
+            'customer_ids' => [$customer->id],
+            'limit' => 1000
+        ]);
+        
         $eventBreakdown = $activities->countBy('event');
         
         $firstActivity = $activities->sortBy('created_at')->first();
@@ -149,10 +160,10 @@ class AuditService
             'description' => $activity->description,
             'changes' => $changes,
             'causer' => $activity->causer?->full_name ?? 'System',
-            'subject' => $activity->subject?->name ?? 'Unknown',
+            'subject' => $activity->subject?->full_name ?? 'Unknown',
             'created_at' => $activity->created_at,
-            'ip_address' => $activity->properties['ip_address'] ?? null,
-            'user_agent' => $activity->properties['user_agent'] ?? null,
+            'ip_address' => $activity->properties ? ($activity->properties['ip_address'] ?? null) : null,
+            'user_agent' => $activity->properties ? ($activity->properties['user_agent'] ?? null) : null,
         ];
     }
 
@@ -310,7 +321,7 @@ class AuditService
      */
     public function getDetailedActivity(User $user, int $activityId): ?Activity
     {
-        return $this->auditRepository->getActivityById($user, $activityId);
+        return $this->auditRepository->findActivityForUser($user, $activityId);
     }
 
     /**
@@ -339,6 +350,18 @@ class AuditService
     }
 
     /**
+     * Get filtered activities using repository filters
+     *
+     * @param User $user
+     * @param array<string, mixed> $filters
+     * @return Collection<int, Activity>
+     */
+    public function getFilteredActivities(User $user, array $filters): Collection
+    {
+        return $this->auditRepository->getAllForUser($user, $filters);
+    }
+
+    /**
      * Get filtered statistics
      *
      * @param User $user
@@ -347,11 +370,12 @@ class AuditService
      */
     public function getFilteredStatistics(User $user, array $filters): array
     {
-        // This would use the repository to get filtered statistics
-        // For now, return basic stats
+        $filteredActivities = $this->getFilteredActivities($user, $filters);
+        
         return [
             'total_activities' => $this->auditRepository->getActivityCountForUser($user),
-            'filtered_count' => 0, // Would be calculated based on filters
+            'filtered_count' => $filteredActivities->count(),
+            'event_breakdown' => $filteredActivities->countBy('event')->toArray(),
         ];
     }
 
@@ -438,7 +462,7 @@ class AuditService
     {
         $changes = [];
         
-        if ($activity->properties->has('old') && $activity->properties->has('attributes')) {
+        if ($activity->properties && $activity->properties->has('old') && $activity->properties->has('attributes')) {
             $old = $activity->properties->get('old', []);
             $new = $activity->properties->get('attributes', []);
             
@@ -500,7 +524,7 @@ class AuditService
                 $activity->subject?->full_name ?? 'Unknown',
                 $activity->created_at->format('Y-m-d H:i:s'),
                 $activity->causer?->full_name ?? 'System',
-                $activity->properties['ip_address'] ?? 'N/A',
+                $activity->properties ? ($activity->properties['ip_address'] ?? 'N/A') : 'N/A',
             ];
         }
 

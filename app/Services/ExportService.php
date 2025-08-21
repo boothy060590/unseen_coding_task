@@ -39,7 +39,7 @@ class ExportService
         $exports = $this->exportRepository->getPaginatedForUser($user, []);
         $downloadableExports = $this->exportRepository->getDownloadableForUser($user);
         $recentExports = $this->exportRepository->getRecentForUser($user, 5);
-        $stats = $this->getExportStatistics($user);
+        $stats = $this->getExportStatistics($user, $downloadableExports, $recentExports);
 
         return [
             'exports' => $exports,
@@ -59,14 +59,14 @@ class ExportService
      * @return Export
      */
     public function createExport(
-        User $user, 
-        string $format = 'csv', 
-        array $filters = [], 
+        User $user,
+        string $format = 'csv',
+        array $filters = [],
         array $options = []
     ): Export {
         // Validate format
         $this->validateExportFormat($format);
-        
+
         // Count records to be exported
         $customers = $this->customerRepository->getAllForUser($user, $filters);
         $totalRecords = $customers->count();
@@ -150,16 +150,17 @@ class ExportService
      * Get export statistics for a user
      *
      * @param User $user
+     * @param Collection $downloadableExports
+     * @param Collection $recentExports
      * @return array<string, mixed>
      */
-    public function getExportStatistics(User $user): array
+    public function getExportStatistics(User $user, Collection $downloadableExports, Collection $recentExports): array
     {
         $allExports = $this->exportRepository->getAllForUser($user, []);
         $completedExports = $allExports->where('status', 'completed');
-        $downloadableExports = $this->exportRepository->getDownloadableForUser($user);
 
         $totalRecordsExported = $completedExports->sum('total_records');
-        
+
         // Group by format
         $formatStats = $completedExports->groupBy('format')->map(fn($exports) => $exports->count());
 
@@ -169,7 +170,7 @@ class ExportService
             'downloadable_exports' => $downloadableExports->count(),
             'total_records_exported' => $totalRecordsExported,
             'format_breakdown' => $formatStats,
-            'recent_exports' => $this->exportRepository->getRecentForUser($user, 5),
+            'recent_exports' => $recentExports,
         ];
     }
 
@@ -183,10 +184,10 @@ class ExportService
     public function generateExportContent(User $user, Export $export): string
     {
         $this->validateUserOwnership($user, $export);
-        
+
         // Get filtered customers
         $customers = $this->customerRepository->getAllForUser($user, $export->filters ?? []);
-        
+
         return match($export->format) {
             'csv' => $this->generateCsvContent($customers),
             'json' => $this->generateJsonContent($customers),
@@ -256,9 +257,9 @@ class ExportService
      * Download export file
      *
      * @param Export $export
-     * @return \Illuminate\Http\Response
+     * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
      */
-    public function downloadExport(Export $export): \Illuminate\Http\Response
+    public function downloadExport(Export $export): \Symfony\Component\HttpFoundation\BinaryFileResponse
     {
         if (!$this->fileExists($export)) {
             abort(404, 'Export file not found');
@@ -266,7 +267,7 @@ class ExportService
 
         $filePath = $export->file_path;
         $fileName = $export->filename ?? basename($filePath);
-        
+
         return response()->download($this->storage->path($filePath), $fileName);
     }
 
@@ -296,7 +297,7 @@ class ExportService
     private function validateExportFormat(string $format): void
     {
         $allowedFormats = ['csv', 'json', 'xlsx'];
-        
+
         if (!in_array($format, $allowedFormats, true)) {
             throw new \InvalidArgumentException("Unsupported export format: {$format}");
         }
@@ -313,12 +314,12 @@ class ExportService
     {
         $timestamp = now()->format('Y_m_d_H_i_s');
         $filterSuffix = '';
-        
+
         if (!empty($filters['organization'])) {
             $org = preg_replace('/[^a-zA-Z0-9_-]/', '', $filters['organization']);
             $filterSuffix = "_{$org}";
         }
-        
+
         return "customers_export{$filterSuffix}_{$timestamp}.{$format}";
     }
 
@@ -332,7 +333,7 @@ class ExportService
     {
         $headers = ['Name', 'Email', 'Phone', 'Organization', 'Job Title', 'Birthdate', 'Notes', 'Created At'];
         $content = implode(',', $headers) . "\n";
-        
+
         foreach ($customers as $customer) {
             $row = [
                 $this->escapeCsvField($customer->full_name),
@@ -344,10 +345,10 @@ class ExportService
                 $this->escapeCsvField($customer->notes ?? ''),
                 $customer->created_at->format('Y-m-d H:i:s'),
             ];
-            
+
             $content .= implode(',', $row) . "\n";
         }
-        
+
         return $content;
     }
 
@@ -372,7 +373,7 @@ class ExportService
                 'slug' => $customer->slug,
             ];
         });
-        
+
         return json_encode([
             'customers' => $data,
             'total' => $customers->count(),
@@ -403,7 +404,7 @@ class ExportService
         if (str_contains($field, ',') || str_contains($field, '"') || str_contains($field, "\n")) {
             return '"' . str_replace('"', '""', $field) . '"';
         }
-        
+
         return $field;
     }
 

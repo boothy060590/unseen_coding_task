@@ -65,7 +65,7 @@ class ExportRepository implements ExportRepositoryInterface
     public function createForUser(User $user, array $data): Export
     {
         $data['user_id'] = $user->id;
-        
+
         return Export::create($data);
     }
 
@@ -85,7 +85,7 @@ class ExportRepository implements ExportRepositoryInterface
         }
 
         $export->update($data);
-        
+
         return $export->fresh();
     }
 

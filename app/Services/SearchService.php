@@ -6,7 +6,7 @@ use App\Contracts\Repositories\CustomerRepositoryInterface;
 use App\Models\Customer;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Carbon\Carbon;
 
@@ -69,10 +69,7 @@ class SearchService
             $cacheInfo['key'],
             $cacheInfo['tags'],
             $this->config->get('cache.ttl.search', 300),
-            fn() => $this->customerRepository->getByOrganizationForUser($user, $organization)
-                ->when(!empty($additionalFilters), fn($collection) => 
-                    $this->applyCollectionFilters($collection, $additionalFilters)
-                )
+            fn() => $this->customerRepository->getAllForUser($user, $filters)
         );
     }
 
@@ -125,8 +122,8 @@ class SearchService
         array $additionalFilters = []
     ): Collection {
         $filters = array_merge($additionalFilters, [
-            'created_from' => $startDate->toDateString(),
-            'created_to' => $endDate->toDateString()
+            'date_from' => $startDate,
+            'date_to' => $endDate
         ]);
 
         $cacheKey = $this->generateSearchCacheKey($user->id, $filters);
@@ -136,11 +133,7 @@ class SearchService
             $cacheInfo['key'],
             $cacheInfo['tags'],
             $this->config->get('cache.ttl.search', 600),
-            fn() => $this->customerRepository->getAllForUser($user)
-                ->whereBetween('created_at', [$startDate, $endDate])
-                ->when(!empty($additionalFilters), fn($collection) => 
-                    $this->applyCollectionFilters($collection, $additionalFilters)
-                )
+            fn() => $this->customerRepository->getAllForUser($user, $filters)
         );
     }
 
@@ -202,37 +195,8 @@ class SearchService
      */
     private function performCustomerSearch(User $user, array $filters, int $perPage): LengthAwarePaginator
     {
-        // Start with all user's customers
-        $query = $this->customerRepository->getAllForUser($user);
-
-        // Apply text search if provided
-        if (!empty($filters['search'])) {
-            $searchTerm = $this->sanitizeSearchQuery($filters['search']);
-            $query = $query->filter(function ($customer) use ($searchTerm) {
-                return $this->customerMatchesSearch($customer, $searchTerm);
-            });
-        }
-
-        // Apply filters
-        $query = $this->applyCollectionFilters($query, $filters);
-
-        // Convert to array for pagination
-        $items = $query->values()->all();
-        $total = count($items);
-
-        // Get current page
-        $currentPage = request()->get('page', 1);
-        $offset = ($currentPage - 1) * $perPage;
-        $currentItems = array_slice($items, $offset, $perPage);
-
-        // Create paginator
-        return new LengthAwarePaginator(
-            $currentItems,
-            $total,
-            $perPage,
-            $currentPage,
-            ['path' => request()->url(), 'pageName' => 'page']
-        );
+        // Use repository filtering instead of manual collection filtering
+        return $this->customerRepository->getPaginatedForUser($user, $filters, $perPage);
     }
 
     /**
@@ -246,146 +210,15 @@ class SearchService
      */
     private function performTextSearch(User $user, string $query, array $filters, int $limit): Collection
     {
-        $customers = $this->customerRepository->getAllForUser($user);
+        // Use repository filtering instead of manual filtering
+        $searchFilters = array_merge($filters, [
+            'search' => $query,
+            'limit' => $limit
+        ]);
 
-        // Filter by text search
-        $results = $customers->filter(function ($customer) use ($query) {
-            return $this->customerMatchesSearch($customer, $query);
-        });
-
-        // Apply additional filters
-        if (!empty($filters)) {
-            $results = $this->applyCollectionFilters($results, $filters);
-        }
-
-        // Sort by relevance (could be enhanced with scoring)
-        $results = $results->sortBy(function ($customer) use ($query) {
-            return $this->calculateSearchScore($customer, $query);
-        });
-
-        return $results->take($limit);
+        return $this->customerRepository->getAllForUser($user, $searchFilters);
     }
 
-    /**
-     * Apply filters to a customer collection
-     *
-     * @param Collection<int, Customer> $customers
-     * @param array<string, mixed> $filters
-     * @return Collection<int, Customer>
-     */
-    private function applyCollectionFilters(Collection $customers, array $filters): Collection
-    {
-        return $customers->filter(function ($customer) use ($filters) {
-            // Organization filter
-            if (!empty($filters['organization'])) {
-                if (stripos($customer->organization ?? '', $filters['organization']) === false) {
-                    return false;
-                }
-            }
-
-            // Job title filter
-            if (!empty($filters['job_title'])) {
-                if (stripos($customer->job_title ?? '', $filters['job_title']) === false) {
-                    return false;
-                }
-            }
-
-            // Date range filters
-            if (!empty($filters['created_from'])) {
-                if ($customer->created_at < Carbon::parse($filters['created_from'])) {
-                    return false;
-                }
-            }
-
-            if (!empty($filters['created_to'])) {
-                if ($customer->created_at > Carbon::parse($filters['created_to'])->endOfDay()) {
-                    return false;
-                }
-            }
-
-            // Email domain filter
-            if (!empty($filters['email_domain'])) {
-                $customerDomain = substr(strrchr($customer->email, '@'), 1);
-                if (stripos($customerDomain, $filters['email_domain']) === false) {
-                    return false;
-                }
-            }
-
-            return true;
-        });
-    }
-
-    /**
-     * Check if customer matches search query
-     *
-     * @param Customer $customer
-     * @param string $query
-     * @return bool
-     */
-    private function customerMatchesSearch(Customer $customer, string $query): bool
-    {
-        $searchableFields = [
-            $customer->full_name,
-            $customer->email,
-            $customer->phone,
-            $customer->organization,
-            $customer->job_title,
-            $customer->notes,
-        ];
-
-        foreach ($searchableFields as $field) {
-            if ($field && stripos($field, $query) !== false) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Calculate search relevance score
-     *
-     * @param Customer $customer
-     * @param string $query
-     * @return int
-     */
-    private function calculateSearchScore(Customer $customer, string $query): int
-    {
-        $score = 0;
-
-        // Name match gets highest score
-        if (stripos($customer->full_name, $query) !== false) {
-            $score += 100;
-            if (stripos($customer->full_name, $query) === 0) {
-                $score += 50; // Bonus for starting with query
-            }
-        }
-
-        // Email match gets high score
-        if (stripos($customer->email, $query) !== false) {
-            $score += 80;
-        }
-
-        // Organization match
-        if ($customer->organization && stripos($customer->organization, $query) !== false) {
-            $score += 60;
-        }
-
-        // Other fields
-        if ($customer->job_title && stripos($customer->job_title, $query) !== false) {
-            $score += 40;
-        }
-
-        if ($customer->phone && stripos($customer->phone, $query) !== false) {
-            $score += 30;
-        }
-
-        if ($customer->notes && stripos($customer->notes, $query) !== false) {
-            $score += 20;
-        }
-
-        return $score;
-    }
 
     /**
      * Generate field suggestions
@@ -398,7 +231,12 @@ class SearchService
      */
     private function generateFieldSuggestions(User $user, string $field, string $query, int $limit): array
     {
-        $customers = $this->customerRepository->getAllForUser($user);
+        // Use repository filtering for suggestions - search by the field
+        $customers = $this->customerRepository->getAllForUser($user, [
+            'search' => $query,
+            'limit' => $limit * 5 // Get more results to filter from
+        ]);
+        
         $suggestions = [];
 
         foreach ($customers as $customer) {
@@ -420,11 +258,7 @@ class SearchService
      */
     private function calculateSearchStatistics(User $user, array $filters): array
     {
-        $customers = $this->customerRepository->getAllForUser($user);
-        
-        if (!empty($filters)) {
-            $customers = $this->applyCollectionFilters($customers, $filters);
-        }
+        $customers = $this->customerRepository->getAllForUser($user, $filters);
 
         return [
             'total_results' => $customers->count(),
