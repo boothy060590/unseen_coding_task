@@ -4,7 +4,8 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\ImportExportController;
+use App\Http\Controllers\ImportController;
+use App\Http\Controllers\ExportController;
 use App\Http\Controllers\AuditController;
 use Illuminate\Support\Facades\Route;
 
@@ -44,26 +45,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Customer routes
     Route::resource('customers', CustomerController::class)->parameters(['customers' => 'customer:slug']);
 
-    // Import/Export routes
-    Route::prefix('import-export')->name('import-export.')->group(function () {
-        Route::get('/', [ImportExportController::class, 'index'])->name('index');
-        
-        // Import routes
-        Route::get('/import', [ImportExportController::class, 'showImport'])->name('show-import');
-        Route::post('/import', [ImportExportController::class, 'import'])->name('import');
-        Route::get('/import/{import}/status', [ImportExportController::class, 'showImportStatus'])->name('show-import-status');
-        Route::get('/import/{import}/progress', [ImportExportController::class, 'importProgress'])->name('import-progress');
-        Route::post('/import/{import}/cancel', [ImportExportController::class, 'cancelImport'])->name('cancel-import');
-        Route::delete('/import/{import}', [ImportExportController::class, 'deleteImport'])->name('delete-import');
-        
-        // Export routes
-        Route::get('/export', [ImportExportController::class, 'showExport'])->name('show-export');
-        Route::post('/export', [ImportExportController::class, 'export'])->name('export');
-        Route::get('/export/{export}/status', [ImportExportController::class, 'showExportStatus'])->name('show-export-status');
-        Route::get('/export/{export}/progress', [ImportExportController::class, 'exportProgress'])->name('export-progress');
-        Route::get('/export/{export}/download', [ImportExportController::class, 'downloadExport'])->name('download');
-        Route::delete('/export/{export}', [ImportExportController::class, 'deleteExport'])->name('delete-export');
-    });
+    // Import routes
+    Route::resource('imports', ImportController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
+    Route::get('/imports/{import}/progress', [ImportController::class, 'progress'])->name('imports.progress');
+    Route::post('/imports/{import}/cancel', [ImportController::class, 'cancel'])->name('imports.cancel');
+
+    // Export routes
+    Route::resource('exports', ExportController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
+    Route::get('/exports/{export}/progress', [ExportController::class, 'progress'])->name('exports.progress');
+    Route::get('/exports/{export}/download', [ExportController::class, 'download'])->name('exports.download');
 
     // Audit routes
     Route::prefix('audit')->name('audit.')->group(function () {

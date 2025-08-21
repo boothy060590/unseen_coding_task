@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Services\CustomerService;
 use App\Services\SearchService;
+use App\Http\Requests\StoreCustomerRequest;
+use App\Http\Requests\UpdateCustomerRequest;
+use App\Http\Requests\BulkCustomerRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
@@ -15,9 +18,7 @@ class CustomerController extends Controller
     public function __construct(
         private CustomerService $customerService,
         private SearchService $searchService
-    ) {
-        $this->middleware('auth:sanctum');
-    }
+    ) {}
 
     /**
      * Display a listing of customers
@@ -50,12 +51,12 @@ class CustomerController extends Controller
     /**
      * Store a newly created customer
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreCustomerRequest $request): JsonResponse
     {
         try {
             $customer = $this->customerService->createCustomer(
                 $request->user(),
-                $request->all()
+                $request->validated()
             );
 
             return response()->json([
@@ -84,13 +85,13 @@ class CustomerController extends Controller
     /**
      * Update the specified customer
      */
-    public function update(Request $request, Customer $customer): JsonResponse
+    public function update(UpdateCustomerRequest $request, Customer $customer): JsonResponse
     {
         try {
             $updatedCustomer = $this->customerService->updateCustomer(
                 $request->user(),
                 $customer,
-                $request->all()
+                $request->validated()
             );
 
             return response()->json([
@@ -172,55 +173,27 @@ class CustomerController extends Controller
     }
 
     /**
-     * Bulk operations
+     * Bulk delete customers
      */
-    public function bulk(Request $request): JsonResponse
+    public function bulkDelete(BulkCustomerRequest $request): JsonResponse
     {
-        $request->validate([
-            'action' => 'required|in:delete,export',
-            'customer_ids' => 'required|array|min:1',
-            'customer_ids.*' => 'exists:customers,id',
-        ]);
-
         $user = $request->user();
-        $action = $request->get('action');
         $customerIds = $request->get('customer_ids');
 
-        // Verify all customers belong to the user
+        // Get customers (validation already ensures they belong to user)
         $customers = Customer::whereIn('id', $customerIds)
             ->where('user_id', $user->id)
             ->get();
 
-        if ($customers->count() !== count($customerIds)) {
-            return response()->json([
-                'message' => 'Some customers not found or not accessible',
-            ], 404);
+        $deletedCount = 0;
+        foreach ($customers as $customer) {
+            $this->customerService->deleteCustomer($user, $customer);
+            $deletedCount++;
         }
 
-        switch ($action) {
-            case 'delete':
-                $deletedCount = 0;
-                foreach ($customers as $customer) {
-                    $this->customerService->deleteCustomer($user, $customer);
-                    $deletedCount++;
-                }
-
-                return response()->json([
-                    'message' => "Successfully deleted {$deletedCount} customers",
-                    'deleted_count' => $deletedCount,
-                ]);
-
-            case 'export':
-                // This would trigger an export job
-                return response()->json([
-                    'message' => 'Export started for selected customers',
-                    'customer_count' => $customers->count(),
-                ]);
-
-            default:
-                return response()->json([
-                    'message' => 'Invalid action',
-                ], 400);
-        }
+        return response()->json([
+            'message' => "Successfully deleted {$deletedCount} customers",
+            'deleted_count' => $deletedCount,
+        ]);
     }
 }
