@@ -36,7 +36,7 @@ class ExportService
      */
     public function getDashboardData(User $user): array
     {
-        $exports = $this->exportRepository->getPaginatedForUser($user);
+        $exports = $this->exportRepository->getPaginatedForUser($user, []);
         $downloadableExports = $this->exportRepository->getDownloadableForUser($user);
         $recentExports = $this->exportRepository->getRecentForUser($user, 5);
         $stats = $this->getExportStatistics($user);
@@ -79,7 +79,7 @@ class ExportService
 
         $exportData = [
             'filename' => $filename,
-            'type' => 'customers',
+            'type' => empty($filters) ? 'all' : 'filtered',
             'format' => $format,
             'status' => 'pending',
             'filters' => $filters,
@@ -154,7 +154,7 @@ class ExportService
      */
     public function getExportStatistics(User $user): array
     {
-        $allExports = $this->exportRepository->getAllForUser($user);
+        $allExports = $this->exportRepository->getAllForUser($user, []);
         $completedExports = $allExports->where('status', 'completed');
         $downloadableExports = $this->exportRepository->getDownloadableForUser($user);
 
@@ -226,7 +226,7 @@ class ExportService
      */
     public function getPaginatedExports(User $user, int $perPage = 15): LengthAwarePaginator
     {
-        return $this->exportRepository->getPaginatedForUser($user, $perPage);
+        return $this->exportRepository->getPaginatedForUser($user, [], $perPage);
     }
 
     /**

@@ -16,18 +16,20 @@ interface ExportRepositoryInterface
      * Get all exports for a specific user
      *
      * @param User $user
+     * @param array<string, mixed> $filters
      * @return Collection<int, Export>
      */
-    public function getAllForUser(User $user): Collection;
+    public function getAllForUser(User $user, array $filters = []): Collection;
 
     /**
      * Get paginated exports for a specific user
      *
      * @param User $user
+     * @param array<string, mixed> $filters
      * @param int $perPage
      * @return LengthAwarePaginator
      */
-    public function getPaginatedForUser(User $user, int $perPage = 15): LengthAwarePaginator;
+    public function getPaginatedForUser(User $user, array $filters = [], int $perPage = 15): LengthAwarePaginator;
 
     /**
      * Find an export by ID for a specific user
