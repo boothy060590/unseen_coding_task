@@ -6,9 +6,9 @@ use App\Contracts\Repositories\ExportRepositoryInterface;
 use App\Contracts\Repositories\CustomerRepositoryInterface;
 use App\Models\Export;
 use App\Models\User;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Service for Export business logic and operations
@@ -20,10 +20,12 @@ class ExportService
      *
      * @param ExportRepositoryInterface $exportRepository
      * @param CustomerRepositoryInterface $customerRepository
+     * @param Filesystem $storage
      */
     public function __construct(
         private ExportRepositoryInterface $exportRepository,
-        private CustomerRepositoryInterface $customerRepository
+        private CustomerRepositoryInterface $customerRepository,
+        private Filesystem $storage
     ) {}
 
     /**
@@ -225,6 +227,63 @@ class ExportService
     public function getPaginatedExports(User $user, int $perPage = 15): LengthAwarePaginator
     {
         return $this->exportRepository->getPaginatedForUser($user, $perPage);
+    }
+
+    /**
+     * Get recent exports for user
+     *
+     * @param User $user
+     * @param int $limit
+     * @return Collection
+     */
+    public function getRecentExports(User $user, int $limit = 10): Collection
+    {
+        return $this->exportRepository->getRecentForUser($user, $limit);
+    }
+
+    /**
+     * Check if export file exists
+     *
+     * @param Export $export
+     * @return bool
+     */
+    public function fileExists(Export $export): bool
+    {
+        return $export->file_path && $this->storage->exists($export->file_path);
+    }
+
+    /**
+     * Download export file
+     *
+     * @param Export $export
+     * @return \Illuminate\Http\Response
+     */
+    public function downloadExport(Export $export): \Illuminate\Http\Response
+    {
+        if (!$this->fileExists($export)) {
+            abort(404, 'Export file not found');
+        }
+
+        $filePath = $export->file_path;
+        $fileName = $export->filename ?? basename($filePath);
+        
+        return response()->download($this->storage->path($filePath), $fileName);
+    }
+
+    /**
+     * Delete export and its file
+     *
+     * @param Export $export
+     * @return bool
+     */
+    public function deleteExport(Export $export): bool
+    {
+        // Delete file if it exists
+        if ($this->fileExists($export)) {
+            $this->storage->delete($export->file_path);
+        }
+
+        return $export->delete();
     }
 
     /**

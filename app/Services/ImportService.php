@@ -5,10 +5,10 @@ namespace App\Services;
 use App\Contracts\Repositories\ImportRepositoryInterface;
 use App\Models\Import;
 use App\Models\User;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -20,9 +20,11 @@ class ImportService
      * Constructor
      *
      * @param ImportRepositoryInterface $importRepository
+     * @param Filesystem $storage
      */
     public function __construct(
-        private ImportRepositoryInterface $importRepository
+        private ImportRepositoryInterface $importRepository,
+        private Filesystem $storage
     ) {}
 
     /**
@@ -216,6 +218,49 @@ class ImportService
     public function getPaginatedImports(User $user, int $perPage = 15): LengthAwarePaginator
     {
         return $this->importRepository->getPaginatedForUser($user, $perPage);
+    }
+
+    /**
+     * Get recent imports for user
+     *
+     * @param User $user
+     * @param int $limit
+     * @return Collection
+     */
+    public function getRecentImports(User $user, int $limit = 10): Collection
+    {
+        return $this->importRepository->getRecentForUser($user, $limit);
+    }
+
+    /**
+     * Cancel import
+     *
+     * @param Import $import
+     * @return bool
+     */
+    public function cancelImport(Import $import): bool
+    {
+        if (!in_array($import->status, ['pending', 'processing'])) {
+            return false;
+        }
+
+        return $import->update(['status' => 'cancelled']);
+    }
+
+    /**
+     * Delete import and its file
+     *
+     * @param Import $import
+     * @return bool
+     */
+    public function deleteImport(Import $import): bool
+    {
+        // Delete file if it exists
+        if ($import->file_path && $this->storage->exists($import->file_path)) {
+            $this->storage->delete($import->file_path);
+        }
+
+        return $import->delete();
     }
 
     /**

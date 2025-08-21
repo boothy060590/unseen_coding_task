@@ -21,6 +21,8 @@ use App\Repositories\Decorators\CachedExportRepository;
 use App\Repositories\Decorators\CachedAuditRepository;
 use App\Services\CacheService;
 use App\Services\AuditService;
+use App\Services\ImportService;
+use App\Services\ExportService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -43,7 +45,7 @@ class AppServiceProvider extends ServiceProvider
         // Register AuditService with S3 storage and AuditRepository dependency injection
         $this->app->bind(AuditService::class, function ($app) {
             return new AuditService(
-                $app->make('filesystem.disk.s3'),
+                $app->make('filesystem.disk'),
                 $app->make(AuditRepositoryInterface::class)
             );
         });
@@ -53,7 +55,7 @@ class AppServiceProvider extends ServiceProvider
             $baseRepository = new CustomerRepository();
             $cacheService = $app->make(CacheService::class);
             $config = $app->make('config');
-            
+
             // Wrap with cache decorator for better performance
             return new CachedCustomerRepository($baseRepository, $cacheService, $config);
         });
@@ -62,7 +64,7 @@ class AppServiceProvider extends ServiceProvider
             $baseRepository = new ImportRepository();
             $cacheService = $app->make(CacheService::class);
             $config = $app->make('config');
-            
+
             // Wrap with cache decorator for better performance
             return new CachedImportRepository($baseRepository, $cacheService, $config);
         });
@@ -71,7 +73,7 @@ class AppServiceProvider extends ServiceProvider
             $baseRepository = new ExportRepository();
             $cacheService = $app->make(CacheService::class);
             $config = $app->make('config');
-            
+
             // Wrap with cache decorator for better performance
             return new CachedExportRepository($baseRepository, $cacheService, $config);
         });
@@ -80,9 +82,26 @@ class AppServiceProvider extends ServiceProvider
             $baseRepository = new AuditRepository();
             $cacheService = $app->make(CacheService::class);
             $config = $app->make('config');
-            
+
             // Wrap with cache decorator for better performance
             return new CachedAuditRepository($baseRepository, $cacheService, $config);
+        });
+
+        // Register ImportService with default filesystem
+        $this->app->bind(ImportService::class, function ($app) {
+            return new ImportService(
+                $app->make(ImportRepositoryInterface::class),
+                $app->make('filesystem.disk') // Use default filesystem
+            );
+        });
+
+        // Register ExportService with default filesystem
+        $this->app->bind(ExportService::class, function ($app) {
+            return new ExportService(
+                $app->make(ExportRepositoryInterface::class),
+                $app->make(CustomerRepositoryInterface::class),
+                $app->make('filesystem.disk') // Use default filesystem
+            );
         });
     }
 
