@@ -70,10 +70,10 @@ class CustomerService
         $cleanData = $this->prepareCustomerData($data);
 
         $customer = $this->customerRepository->createForUser($user, $cleanData);
-        
+
         // Dispatch event for auditing and other side effects
         CustomerCreated::dispatch($customer, $user, ['source' => 'service']);
-        
+
         return $customer;
     }
 
@@ -103,15 +103,15 @@ class CustomerService
 
         // Store original data for audit purposes
         $originalData = $customer->toArray();
-        
+
         // Clean and prepare data
         $cleanData = $this->prepareCustomerData($data);
 
         $updatedCustomer = $this->customerRepository->updateForUser($user, $customer, $cleanData);
-        
+
         // Dispatch event for auditing and other side effects
         CustomerUpdated::dispatch($updatedCustomer, $user, $originalData, ['source' => 'service']);
-        
+
         return $updatedCustomer;
     }
 
@@ -126,7 +126,7 @@ class CustomerService
     {
         // Add any business logic checks here (e.g., prevent deletion if customer has orders)
         // For now, we'll allow deletion
-        
+
         // Dispatch event before deletion (while customer data is still available)
         CustomerDeleted::dispatch($customer, $user, ['source' => 'service']);
 
@@ -150,7 +150,10 @@ class CustomerService
             return new Collection();
         }
 
-        return $this->customerRepository->searchForUser($user, $cleanQuery, $limit);
+        return $this->customerRepository->getAllForUser($user, [
+            'search' => $cleanQuery,
+            'limit' => $limit
+        ]);
     }
 
     /**
@@ -205,7 +208,7 @@ class CustomerService
      */
     public function getCustomersByOrganization(User $user, string $organization): Collection
     {
-        return $this->customerRepository->getByOrganizationForUser($user, $organization);
+        return $this->customerRepository->getAllForUser($user, ['organization' => $organization]);
     }
 
     /**

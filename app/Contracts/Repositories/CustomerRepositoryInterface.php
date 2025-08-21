@@ -78,31 +78,12 @@ interface CustomerRepositoryInterface
     public function deleteForUser(User $user, Customer $customer): bool;
 
     /**
-     * Search customers for a specific user
-     *
-     * @param User $user
-     * @param string $query
-     * @param int $limit
-     * @return Collection<int, Customer>
-     */
-    public function searchForUser(User $user, string $query, int $limit = 50): Collection;
-
-    /**
      * Get customer count for a specific user
      *
      * @param User $user
      * @return int
      */
     public function getCountForUser(User $user): int;
-
-    /**
-     * Get customers by organization for a specific user
-     *
-     * @param User $user
-     * @param string $organization
-     * @return Collection<int, Customer>
-     */
-    public function getByOrganizationForUser(User $user, string $organization): Collection;
 
     /**
      * Get recent customers for a specific user

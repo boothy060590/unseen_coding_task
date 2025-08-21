@@ -118,27 +118,6 @@ class CustomerRepository implements CustomerRepositoryInterface
         return (bool) $customer->delete();
     }
 
-    /**
-     * Search customers for a specific user
-     *
-     * @param User $user
-     * @param string $query
-     * @param int $limit
-     * @return Collection<int, Customer>
-     */
-    public function searchForUser(User $user, string $query, int $limit = 50): Collection
-    {
-        return $this->buildUserQuery($user)
-            ->where(function (Builder $builder) use ($query) {
-                $builder->whereFullText(['notes', 'name', 'organization'], $query)
-                    ->orWhere('name', 'LIKE', "%{$query}%")
-                    ->orWhere('email', 'LIKE', "%{$query}%")
-                    ->orWhere('organization', 'LIKE', "%{$query}%")
-                    ->orWhere('job_title', 'LIKE', "%{$query}%");
-            })
-            ->limit($limit)
-            ->get();
-    }
 
     /**
      * Get customer count for a specific user
@@ -149,21 +128,6 @@ class CustomerRepository implements CustomerRepositoryInterface
     public function getCountForUser(User $user): int
     {
         return $this->buildUserQuery($user)->count();
-    }
-
-    /**
-     * Get customers by organization for a specific user
-     *
-     * @param User $user
-     * @param string $organization
-     * @return Collection<int, Customer>
-     */
-    public function getByOrganizationForUser(User $user, string $organization): Collection
-    {
-        return $this->buildUserQuery($user)
-            ->where('organization', $organization)
-            ->orderBy('name')
-            ->get();
     }
 
     /**
@@ -207,6 +171,10 @@ class CustomerRepository implements CustomerRepositoryInterface
                 $builder->whereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", "%{$searchTerm}%")
                     ->orWhere('email', 'LIKE', "%{$searchTerm}%");
             });
+        }
+
+        if (isset($filters['limit']) && is_numeric($filters['limit'])) {
+            $query->limit((int) $filters['limit']);
         }
 
         if (isset($filters['organization']) && $filters['organization']) {

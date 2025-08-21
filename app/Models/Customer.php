@@ -42,6 +42,7 @@ class Customer extends Model
     protected $fillable = [
         'first_name',
         'last_name',
+        'user_id',
         'email',
         'phone',
         'organization',
@@ -59,13 +60,6 @@ class Customer extends Model
 
     protected static function booted(): void
     {
-        static::creating(function (Customer $customer) {
-            if (!$customer->user_id) {
-                throw_if(!auth()->check(), new \Exception('Customer must have a user_id assigned'));
-                $customer->user_id = auth()->id();
-            }
-        });
-
         static::addGlobalScope('user', function (Builder $builder) {
             if (auth()->check()) {
                 $builder->where('user_id', auth()->id());
