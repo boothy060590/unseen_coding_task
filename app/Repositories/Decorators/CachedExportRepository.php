@@ -32,17 +32,23 @@ class CachedExportRepository implements ExportRepositoryInterface
      * Get all exports for a specific user
      *
      * @param User $user
+     * @param array<string, mixed> $filters
      * @return Collection<int, Export>
      */
-    public function getAllForUser(User $user): Collection
+    public function getAllForUser(User $user, array $filters = []): Collection
     {
+        // Don't cache filtered results as they can be highly variable
+        if (!empty($filters)) {
+            return $this->repository->getAllForUser($user, $filters);
+        }
+
         $cacheInfo = $this->cacheService->getExportCacheInfo($user->id, 'all');
 
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             $cacheInfo['tags'],
             $this->config->get('cache.ttl.exports', 1800),
-            fn() => $this->repository->getAllForUser($user)
+            fn() => $this->repository->getAllForUser($user, $filters)
         );
     }
 
@@ -50,13 +56,14 @@ class CachedExportRepository implements ExportRepositoryInterface
      * Get paginated exports for a specific user
      *
      * @param User $user
+     * @param array<string, mixed> $filters
      * @param int $perPage
      * @return LengthAwarePaginator
      */
-    public function getPaginatedForUser(User $user, int $perPage = 15): LengthAwarePaginator
+    public function getPaginatedForUser(User $user, array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
         // Don't cache paginated results as they change frequently and have many variations
-        return $this->repository->getPaginatedForUser($user, $perPage);
+        return $this->repository->getPaginatedForUser($user, $filters, $perPage);
     }
 
     /**
@@ -73,7 +80,7 @@ class CachedExportRepository implements ExportRepositoryInterface
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             $cacheInfo['tags'],
-            $this->config->get('cache.ttl.exports', 1800) / 6, // Shorter TTL for status-changing data
+            $this->config->get('cache.ttl.exports_short', 300), // Shorter TTL for status-changing data
             fn() => $this->repository->findForUser($user, $id)
         );
     }
@@ -88,10 +95,10 @@ class CachedExportRepository implements ExportRepositoryInterface
     public function createForUser(User $user, array $data): Export
     {
         $export = $this->repository->createForUser($user, $data);
-        
+
         // Clear export cache using improved invalidation
         $this->cacheService->clearExportCache($user->id);
-        
+
         return $export;
     }
 
@@ -106,10 +113,10 @@ class CachedExportRepository implements ExportRepositoryInterface
     public function updateForUser(User $user, Export $export, array $data): Export
     {
         $updatedExport = $this->repository->updateForUser($user, $export, $data);
-        
+
         // Clear export cache using improved invalidation
         $this->cacheService->clearExportCache($user->id);
-        
+
         return $updatedExport;
     }
 
@@ -125,8 +132,8 @@ class CachedExportRepository implements ExportRepositoryInterface
         $cacheInfo = $this->cacheService->getExportCacheInfo($user->id, 'status', $status);
 
         // Use shorter TTL for processing status as it changes frequently
-        $ttl = $status === 'processing' 
-            ? $this->config->get('cache.ttl.exports', 1800) / 6  // 5 minutes
+        $ttl = $status === 'processing'
+            ? $this->config->get('cache.ttl.exports_short', 300)  // 5 minutes default
             : $this->config->get('cache.ttl.exports', 1800);
 
         return $this->cacheService->rememberWithTags(
@@ -151,7 +158,7 @@ class CachedExportRepository implements ExportRepositoryInterface
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             $cacheInfo['tags'],
-            $this->config->get('cache.ttl.exports', 1800) / 6, // Shorter TTL for recent data
+            $this->config->get('cache.ttl.exports_short', 300), // Shorter TTL for recent data
             fn() => $this->repository->getRecentForUser($user, $limit)
         );
     }
@@ -188,7 +195,7 @@ class CachedExportRepository implements ExportRepositoryInterface
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             $cacheInfo['tags'],
-            $this->config->get('cache.ttl.exports', 1800) / 6,
+            $this->config->get('cache.ttl.exports_short', 1800),
             fn() => $this->repository->getDownloadableForUser($user)
         );
     }
@@ -208,14 +215,15 @@ class CachedExportRepository implements ExportRepositoryInterface
      * Clean up expired exports
      *
      * @return int Number of cleaned up exports
+     * @throws \ReflectionException
      */
     public function cleanupExpiredExports(): int
     {
         $cleanedCount = $this->repository->cleanupExpiredExports();
-        
+
         // Clear all export-related caches across users after cleanup
         $this->cacheService->clearOperationCache('export');
-        
+
         return $cleanedCount;
     }
 }

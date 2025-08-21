@@ -159,26 +159,6 @@ class CachedCustomerRepository implements CustomerRepositoryInterface
     }
 
     /**
-     * Search customers for a specific user
-     *
-     * @param User $user
-     * @param string $query
-     * @param int $limit
-     * @return Collection<int, Customer>
-     */
-    public function searchForUser(User $user, string $query, int $limit = 50): Collection
-    {
-        $cacheInfo = $this->cacheService->getUserCacheInfo($user->id, 'search', md5($query), $limit);
-
-        return $this->cacheService->rememberWithTags(
-            $cacheInfo['key'],
-            $cacheInfo['tags'],
-            $this->config->get('cache.ttl.search', 300),
-            fn() => $this->repository->searchForUser($user, $query, $limit)
-        );
-    }
-
-    /**
      * Get customer count for a specific user
      *
      * @param User $user
@@ -193,25 +173,6 @@ class CachedCustomerRepository implements CustomerRepositoryInterface
             $cacheInfo['tags'],
             $this->config->get('cache.ttl.customers', 3600),
             fn() => $this->repository->getCountForUser($user)
-        );
-    }
-
-    /**
-     * Get customers by organization for a specific user
-     *
-     * @param User $user
-     * @param string $organization
-     * @return Collection<int, Customer>
-     */
-    public function getByOrganizationForUser(User $user, string $organization): Collection
-    {
-        $cacheInfo = $this->cacheService->getUserCacheInfo($user->id, 'organization', md5($organization));
-
-        return $this->cacheService->rememberWithTags(
-            $cacheInfo['key'],
-            $cacheInfo['tags'],
-            $this->config->get('cache.ttl.customers', 3600),
-            fn() => $this->repository->getByOrganizationForUser($user, $organization)
         );
     }
 

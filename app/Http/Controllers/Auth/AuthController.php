@@ -26,8 +26,7 @@ class AuthController extends Controller
 
     /**
      * Show the registration form
-     *
-     * @return View
+     *turn View
      */
     public function showRegister(): View
     {

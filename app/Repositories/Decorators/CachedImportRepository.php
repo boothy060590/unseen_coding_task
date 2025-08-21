@@ -32,17 +32,23 @@ class CachedImportRepository implements ImportRepositoryInterface
      * Get all imports for a specific user
      *
      * @param User $user
+     * @param array<string, mixed> $filters
      * @return Collection<int, Import>
      */
-    public function getAllForUser(User $user): Collection
+    public function getAllForUser(User $user, array $filters = []): Collection
     {
+        // Don't cache filtered results as they can be highly variable
+        if (!empty($filters)) {
+            return $this->repository->getAllForUser($user, $filters);
+        }
+
         $cacheInfo = $this->cacheService->getImportCacheInfo($user->id, 'all');
 
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             $cacheInfo['tags'],
             $this->config->get('cache.ttl.imports', 1800),
-            fn() => $this->repository->getAllForUser($user)
+            fn() => $this->repository->getAllForUser($user, $filters)
         );
     }
 
@@ -50,13 +56,14 @@ class CachedImportRepository implements ImportRepositoryInterface
      * Get paginated imports for a specific user
      *
      * @param User $user
+     * @param array<string, mixed> $filters
      * @param int $perPage
      * @return LengthAwarePaginator
      */
-    public function getPaginatedForUser(User $user, int $perPage = 15): LengthAwarePaginator
+    public function getPaginatedForUser(User $user, array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
         // Don't cache paginated results as they change frequently and have many variations
-        return $this->repository->getPaginatedForUser($user, $perPage);
+        return $this->repository->getPaginatedForUser($user, $filters, $perPage);
     }
 
     /**
@@ -73,7 +80,7 @@ class CachedImportRepository implements ImportRepositoryInterface
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             $cacheInfo['tags'],
-            $this->config->get('cache.ttl.imports', 1800) / 6, // Shorter TTL for status-changing data
+            $this->config->get('cache.ttl.imports_short', 300), // Shorter TTL for status-changing data
             fn() => $this->repository->findForUser($user, $id)
         );
     }
@@ -84,14 +91,15 @@ class CachedImportRepository implements ImportRepositoryInterface
      * @param User $user
      * @param array<string, mixed> $data
      * @return Import
+     * @throws \ReflectionException
      */
     public function createForUser(User $user, array $data): Import
     {
         $import = $this->repository->createForUser($user, $data);
-        
+
         // Clear import cache using improved invalidation
         $this->cacheService->clearImportCache($user->id);
-        
+
         return $import;
     }
 
@@ -102,14 +110,15 @@ class CachedImportRepository implements ImportRepositoryInterface
      * @param Import $import
      * @param array<string, mixed> $data
      * @return Import
+     * @throws \ReflectionException
      */
     public function updateForUser(User $user, Import $import, array $data): Import
     {
         $updatedImport = $this->repository->updateForUser($user, $import, $data);
-        
+
         // Clear import cache using improved invalidation
         $this->cacheService->clearImportCache($user->id);
-        
+
         return $updatedImport;
     }
 
@@ -125,8 +134,8 @@ class CachedImportRepository implements ImportRepositoryInterface
         $cacheInfo = $this->cacheService->getImportCacheInfo($user->id, 'status', $status);
 
         // Use shorter TTL for processing status as it changes frequently
-        $ttl = $status === 'processing' 
-            ? $this->config->get('cache.ttl.imports', 1800) / 6  // 5 minutes
+        $ttl = $status === 'processing'
+            ? $this->config->get('cache.ttl.imports_short', 300)  // 5 minutes default
             : $this->config->get('cache.ttl.imports', 1800);
 
         return $this->cacheService->rememberWithTags(
@@ -151,7 +160,7 @@ class CachedImportRepository implements ImportRepositoryInterface
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             $cacheInfo['tags'],
-            $this->config->get('cache.ttl.imports', 1800) / 6, // Shorter TTL for recent data
+            $this->config->get('cache.ttl.imports_short', 300), // Shorter TTL for recent data
             fn() => $this->repository->getRecentForUser($user, $limit)
         );
     }

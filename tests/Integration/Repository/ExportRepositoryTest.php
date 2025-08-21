@@ -171,7 +171,7 @@ class ExportRepositoryTest extends TestCase
 
         $exportData = [
             'filename' => 'test_export.csv',
-            'type' => 'filtered',
+            'type' => 'customers',
             'format' => 'csv',
             'status' => 'pending',
             'total_records' => 100,
@@ -182,7 +182,7 @@ class ExportRepositoryTest extends TestCase
         $this->assertInstanceOf(Export::class, $export);
         $this->assertSame($user->id, $export->user_id);
         $this->assertSame('test_export.csv', $export->filename);
-        $this->assertSame('filtered', $export->type);
+        $this->assertSame('customers', $export->type);
         $this->assertSame('csv', $export->format);
         $this->assertSame('pending', $export->status);
         $this->assertSame(100, $export->total_records);

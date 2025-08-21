@@ -105,4 +105,40 @@ interface AuditRepositoryInterface
         array $properties = []
     ): Activity;
 
+    /**
+     * Get recent audit activities for a user
+     *
+     * @param User $user
+     * @param int $limit
+     * @return Collection<int, Activity>
+     */
+    public function getRecentUserActivities(User $user, int $limit = 10): Collection;
+
+    /**
+     * Get audit activities by date range for a user
+     *
+     * @param User $user
+     * @param \DateTimeInterface $fromDate
+     * @param \DateTimeInterface $toDate
+     * @return Collection<int, Activity>
+     */
+    public function getActivitiesByDateRange(User $user, \DateTimeInterface $fromDate, \DateTimeInterface $toDate): Collection;
+
+    /**
+     * Get audit activities by event type for a user
+     *
+     * @param User $user
+     * @param string $event
+     * @return Collection<int, Activity>
+     */
+    public function getActivitiesByEvent(User $user, string $event): Collection;
+
+    /**
+     * Get activities for multiple customers
+     *
+     * @param User $user
+     * @param array<int> $customerIds
+     * @return Collection<int, Activity>
+     */
+    public function getActivitiesForCustomers(User $user, array $customerIds): Collection;
 }

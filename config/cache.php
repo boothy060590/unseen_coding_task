@@ -121,8 +121,11 @@ return [
         'stats' => env('CACHE_TTL_STATS', 900),          // 15 minutes
         'customers' => env('CACHE_TTL_CUSTOMERS', 600),  // 10 minutes
         'audit' => env('CACHE_TTL_AUDIT', 1200),         // 20 minutes
+        'audit_short' => env('CACHE_TTL_AUDIT_SHORT', 300),         // 5 minutes
         'imports' => env('CACHE_TTL_IMPORTS', 300),      // 5 minutes
+        'imports_short' => env('CACHE_TTL_IMPORTS_SHORT', 300),      // 5 minutes
         'exports' => env('CACHE_TTL_EXPORTS', 300),      // 5 minutes
+        'exports_short' => env('CACHE_TTL_EXPORTS_SHORT', 300),      // 5 minutes
     ],
 
 ];

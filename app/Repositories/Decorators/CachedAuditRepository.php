@@ -3,13 +3,14 @@
 namespace App\Repositories\Decorators;
 
 use App\Contracts\Repositories\AuditRepositoryInterface;
+use App\Models\Activity;
 use App\Models\Customer;
 use App\Models\User;
 use App\Services\CacheService;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
-use Spatie\Activitylog\Models\Activity;
+use Illuminate\Support\Collection as SupportCollection;
 
 /**
  * Cache decorator for AuditRepository to improve performance
@@ -28,6 +29,28 @@ class CachedAuditRepository implements AuditRepositoryInterface
         private CacheService $cacheService,
         private ConfigRepository $config
     ) {}
+
+    /**
+     * @param User $user
+     * @param array $filters
+     * @return Collection
+     * @desc filters vary, so we use the base repo to query as this isn't something we should cache
+     */
+    public function getAllForUser(User $user, array $filters = []): Collection
+    {
+        return $this->repository->getAllForUser($user, $filters);
+    }
+
+    /**
+     * @param User $user
+     * @param array $filters
+     * @param int $perPage
+     * @return LengthAwarePaginator
+     */
+    public function getPaginatedForUser(User $user, array $filters = [], int $perPage = 15): LengthAwarePaginator
+    {
+        return $this->repository->getPaginatedForUser($user, $filters, $perPage);
+    }
 
     /**
      * Get audit trail for a specific customer
@@ -70,7 +93,7 @@ class CachedAuditRepository implements AuditRepositoryInterface
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             [...$cacheInfo['tags'], 'audit:recent'],
-            $this->config->get('cache.ttl.audit', 900) / 3,
+            $this->config->get('cache.ttl.audit_short', 300),
             fn() => $this->repository->getRecentUserActivities($user, $limit)
         );
     }
@@ -180,9 +203,9 @@ class CachedAuditRepository implements AuditRepositoryInterface
      *
      * @param User $user
      * @param int $limit
-     * @return Collection<int, array>
+     * @return SupportCollection<int, array>
      */
-    public function getMostActiveCustomers(User $user, int $limit = 5): Collection
+    public function getMostActiveCustomers(User $user, int $limit = 5): SupportCollection
     {
         $cacheInfo = $this->cacheService->getUserCacheInfo($user->id, 'audit_most_active_customers', $limit);
 
@@ -203,6 +226,7 @@ class CachedAuditRepository implements AuditRepositoryInterface
      * @param string $description
      * @param array<string, mixed> $properties
      * @return Activity
+     * @throws \ReflectionException
      */
     public function logCustomerActivity(
         User $user,
@@ -210,13 +234,14 @@ class CachedAuditRepository implements AuditRepositoryInterface
         string $event,
         string $description,
         array $properties = []
-    ): Activity {
+    ): Activity
+    {
         $activity = $this->repository->logCustomerActivity($user, $customer, $event, $description, $properties);
-        
+
         // Clear audit-related cache when new activity is logged
         $this->clearAuditCacheForUser($user);
         $this->clearAuditCacheForCustomer($user, $customer);
-        
+
         return $activity;
     }
 
@@ -232,7 +257,7 @@ class CachedAuditRepository implements AuditRepositoryInterface
         // Cache key based on sorted customer IDs to ensure consistency
         sort($customerIds);
         $customerIdHash = md5(implode(',', $customerIds));
-        
+
         $cacheInfo = $this->cacheService->getUserCacheInfo($user->id, 'audit_for_customers', $customerIdHash);
 
         return $this->cacheService->rememberWithTags(
@@ -248,11 +273,12 @@ class CachedAuditRepository implements AuditRepositoryInterface
      *
      * @param User $user
      * @return void
+     * @throws \ReflectionException
      */
     private function clearAuditCacheForUser(User $user): void
     {
         // Clear audit-specific tags for the user
-        $this->cacheService->flushByTags([
+        $this->cacheService->flushByKeys([
             "user:{$user->id}",
             'audit:recent',
             'audit:count',
@@ -268,11 +294,12 @@ class CachedAuditRepository implements AuditRepositoryInterface
      * @param User $user
      * @param Customer $customer
      * @return void
+     * @throws \ReflectionException
      */
     private function clearAuditCacheForCustomer(User $user, Customer $customer): void
     {
         // Clear customer-specific audit cache
-        $this->cacheService->flushByTags([
+        $this->cacheService->flushByKeys([
             "user:{$user->id}",
             "customer:{$customer->id}",
             'audit:recent',

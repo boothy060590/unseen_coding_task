@@ -17,11 +17,11 @@ class ExportFactory extends Factory
     public function definition(): array
     {
         $timestamp = $this->faker->dateTimeBetween('-1 month', 'now');
-        
+
         return [
             'user_id' => \App\Models\User::factory(),
             'filename' => $this->faker->regexify('export_[0-9]{8}_[0-9]{6}\.(csv|xlsx)'),
-            'type' => $this->faker->randomElement(['all', 'filtered']),
+            'type' => $this->faker->randomElement(['customers', 'audit_logs', 'imports', 'exports', 'reports']),
             'format' => $this->faker->randomElement(['csv', 'xlsx']),
             'status' => $this->faker->randomElement(['pending', 'processing', 'completed', 'failed']),
             'total_records' => $this->faker->numberBetween(0, 10000),

@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('filename');
-            $table->enum('type', ['all', 'filtered']); // All customers or filtered results
+            $table->enum('type', ['customers', 'audit_logs', 'imports', 'exports', 'reports']); // What type of data is being exported
             $table->json('filters')->nullable(); // Store the filters used for export
             $table->enum('format', ['csv', 'xlsx']); // Export format
             $table->enum('status', ['pending', 'processing', 'completed', 'failed']);

@@ -29,38 +29,10 @@ class CacheService
      */
     public function rememberWithTags(string $key, array $tags, int $ttl, callable $callback): mixed
     {
-        // Use cache tags if the cache driver supports it (Redis, Memcached)
-        if ($this->supportsTags()) {
-            // Use the injected cache instance with tags
-            return $this->cache->tags($tags)->remember($key, $ttl, $callback);
-        }
+        // Create a prefixed cache key that includes tag information
+        $cacheKey = $this->createCacheKey($key, $tags);
 
-        // Fallback to regular cache with tag-based key
-        $taggedKey = $this->createTaggedKey($key, $tags);
-        $result = $this->cache->remember($taggedKey, $ttl, $callback);
-
-        // Store key associations for manual invalidation
-        $this->storeKeyTagAssociations($key, $tags);
-
-        return $result;
-    }
-
-    /**
-     * Flush cache by tags
-     *
-     * @param array<string> $tags
-     * @return void
-     */
-    public function flushByTags(array $tags): void
-    {
-        if ($this->supportsTags()) {
-            // Use the injected cache instance with tags
-            $this->cache->tags($tags)->flush();
-            return;
-        }
-
-        // Manual invalidation for drivers that don't support tags
-        $this->flushByTagsManually($tags);
+        return $this->cache->remember($cacheKey, $ttl, $callback);
     }
 
     /**
@@ -168,10 +140,11 @@ class CacheService
      *
      * @param int $userId
      * @return void
+     * @throws \ReflectionException
      */
     public function clearUserCache(int $userId): void
     {
-        $this->flushByTags(["user:{$userId}"]);
+        $this->flushByKeys(["user:{$userId}"]);
     }
 
     /**
@@ -180,10 +153,11 @@ class CacheService
      * @param int $userId
      * @param int $customerId
      * @return void
+     * @throws \ReflectionException
      */
     public function clearCustomerCache(int $userId, int $customerId): void
     {
-        $this->flushByTags([
+        $this->flushByKeys([
             "user:{$userId}",
             "customer:{$customerId}",
         ]);
@@ -194,10 +168,11 @@ class CacheService
      *
      * @param int $userId
      * @return void
+     * @throws \ReflectionException
      */
     public function clearImportCache(int $userId): void
     {
-        $this->flushByTags([
+        $this->flushByKeys([
             "import:user:{$userId}",
         ]);
     }
@@ -207,10 +182,11 @@ class CacheService
      *
      * @param int $userId
      * @return void
+     * @throws \ReflectionException
      */
     public function clearExportCache(int $userId): void
     {
-        $this->flushByTags([
+        $this->flushByKeys([
             "export:user:{$userId}",
         ]);
     }
@@ -220,80 +196,63 @@ class CacheService
      *
      * @param string $operation
      * @return void
+     * @throws \ReflectionException
      */
     public function clearOperationCache(string $operation): void
     {
-        $this->flushByTags(["operation:{$operation}"]);
+        $this->flushByKeys(["operation:{$operation}"]);
     }
 
-    /**
-     * Check if the cache driver supports tags
-     *
-     * @return bool
-     */
-    private function supportsTags(): bool
-    {
-        try {
-            // Use the injected cache instance to test for tag support
-            $this->cache->tags(['test']);
-            return true;
-        } catch (\BadMethodCallException) {
-            return false;
-        }
-    }
+
 
     /**
-     * Create a tagged key for drivers that don't support tags
+     * Create a cache key with tag prefixes for predictable invalidation
      *
      * @param string $key
      * @param array<string> $tags
      * @return string
      */
-    private function createTaggedKey(string $key, array $tags): string
+    private function createCacheKey(string $key, array $tags): string
     {
-        $tagHash = md5(implode('|', sort($tags)));
-        return "tagged:{$tagHash}:{$key}";
+        // Sort tags for consistency
+        sort($tags);
+
+        // Create a key with tag prefixes for easy pattern matching
+        $tagPrefixes = implode(':', $tags);
+
+        return "cache:{$tagPrefixes}:{$key}";
     }
 
     /**
-     * Store key-tag associations for manual invalidation
+     * Flush cache by matching key patterns
      *
-     * @param string $key
-     * @param array<string> $tags
+     * @param array<string> $patterns
      * @return void
+     * @throws \ReflectionException
      */
-    private function storeKeyTagAssociations(string $key, array $tags): void
+    public function flushByKeys(array $patterns): void
     {
-        foreach ($tags as $tag) {
-            $tagKey = "tag_keys:{$tag}";
-            $keys = $this->cache->get($tagKey, []);
+        $store = $this->cache->getStore();
+        $reflection = new \ReflectionClass($store);
+        $storageProperty = $reflection->getProperty('storage');
+        $storageProperty->setAccessible(true);
+        $storage = $storageProperty->getValue($store);
 
-            if (!in_array($key, $keys, true)) {
-                $keys[] = $key;
-                $this->cache->put($tagKey, $keys, now()->addDay()); // Store for 1 day
+        $keysToDelete = [];
+
+        foreach (array_keys($storage) as $cacheKey) {
+            // Check if this cache key matches any of our key patterns
+            foreach ($patterns as $pattern) {
+                if (str_contains($cacheKey, "cache:") && str_contains($cacheKey, $pattern)) {
+                    $keysToDelete[] = $cacheKey;
+                    break;
+                }
             }
         }
-    }
 
-    /**
-     * Flush cache by tags manually for drivers that don't support tags
-     *
-     * @param array<string> $tags
-     * @return void
-     */
-    private function flushByTagsManually(array $tags): void
-    {
-        foreach ($tags as $tag) {
-            $tagKey = "tag_keys:{$tag}";
-            $keys = $this->cache->get($tagKey, []);
-
-            // Delete all keys associated with this tag
-            foreach ($keys as $key) {
-                $this->cache->forget($key);
-            }
-
-            // Clear the tag association
-            $this->cache->forget($tagKey);
+        // Delete all matching keys
+        foreach ($keysToDelete as $key) {
+            $this->cache->forget($key);
         }
     }
 }
