@@ -35,7 +35,8 @@
     31 => 'Spatie\\Activitylog\\ActivitylogServiceProvider',
     32 => 'App\\Providers\\AppServiceProvider',
     33 => 'App\\Providers\\AuthServiceProvider',
-    34 => 'App\\Providers\\HorizonServiceProvider',
+    34 => 'App\\Providers\\EventServiceProvider',
+    35 => 'App\\Providers\\HorizonServiceProvider',
   ),
   'eager' => 
   array (
@@ -58,7 +59,8 @@
     16 => 'Spatie\\Activitylog\\ActivitylogServiceProvider',
     17 => 'App\\Providers\\AppServiceProvider',
     18 => 'App\\Providers\\AuthServiceProvider',
-    19 => 'App\\Providers\\HorizonServiceProvider',
+    19 => 'App\\Providers\\EventServiceProvider',
+    20 => 'App\\Providers\\HorizonServiceProvider',
   ),
   'deferred' => 
   array (

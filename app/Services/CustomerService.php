@@ -220,7 +220,8 @@ class CustomerService
     {
         // Business validation rules
         $rules = [
-            'name' => 'required|string|max:255|min:2',
+            'first_name' => 'required|string|max:255|min:1',
+            'last_name' => 'required|string|max:255|min:1',
             'email' => 'required|email|max:255',
             'phone' => 'nullable|string|max:20',
             'organization' => 'nullable|string|max:255',
@@ -264,8 +265,12 @@ class CustomerService
         // Clean and format data
         $cleanData = [];
 
-        if (isset($data['name'])) {
-            $cleanData['name'] = trim($data['name']);
+        if (isset($data['first_name'])) {
+            $cleanData['first_name'] = trim($data['first_name']);
+        }
+
+        if (isset($data['last_name'])) {
+            $cleanData['last_name'] = trim($data['last_name']);
         }
 
         if (isset($data['email'])) {

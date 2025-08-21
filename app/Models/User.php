@@ -14,7 +14,8 @@ use Carbon\Carbon;
  * User model representing authenticated users in the system
  *
  * @property int $id
- * @property string $name
+ * @property string $first_name
+ * @property string $last_name
  * @property string $email
  * @property Carbon|null $email_verified_at
  * @property string $password
@@ -39,7 +40,8 @@ class User extends Authenticatable implements MustVerifyEmail
      * @var list<string>
      */
     protected $fillable = [
-        'name',
+        'first_name',
+        'last_name',
         'email',
         'password',
     ];
@@ -80,5 +82,26 @@ class User extends Authenticatable implements MustVerifyEmail
     public function exports(): HasMany
     {
         return $this->hasMany(Export::class);
+    }
+
+    /**
+     * Get the user's full name
+     *
+     * @return string
+     */
+    public function getFullNameAttribute(): string
+    {
+        return trim($this->first_name . ' ' . $this->last_name);
+    }
+
+    /**
+     * Get the user's display name (falls back to email if no names)
+     *
+     * @return string
+     */
+    public function getDisplayNameAttribute(): string
+    {
+        $fullName = $this->getFullNameAttribute();
+        return $fullName ?: $this->email;
     }
 }

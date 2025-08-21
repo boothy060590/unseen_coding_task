@@ -276,7 +276,7 @@ class ExportService
         
         foreach ($customers as $customer) {
             $row = [
-                $this->escapeCsvField($customer->name),
+                $this->escapeCsvField($customer->full_name),
                 $this->escapeCsvField($customer->email),
                 $this->escapeCsvField($customer->phone ?? ''),
                 $this->escapeCsvField($customer->organization ?? ''),
@@ -302,7 +302,7 @@ class ExportService
     {
         $data = $customers->map(function ($customer) {
             return [
-                'name' => $customer->name,
+                'name' => $customer->full_name,
                 'email' => $customer->email,
                 'phone' => $customer->phone,
                 'organization' => $customer->organization,

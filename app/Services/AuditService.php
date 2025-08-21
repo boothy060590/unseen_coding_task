@@ -118,7 +118,7 @@ class AuditService
             'event' => $activity->event,
             'description' => $activity->description,
             'changes' => $changes,
-            'causer' => $activity->causer?->name ?? 'System',
+            'causer' => $activity->causer?->full_name ?? 'System',
             'subject' => $activity->subject?->name ?? 'Unknown',
             'created_at' => $activity->created_at,
             'ip_address' => $activity->properties['ip_address'] ?? null,
@@ -148,7 +148,7 @@ class AuditService
         // Format data for JSON storage
         $auditData = [
             'user_id' => $user->id,
-            'user_name' => $user->name,
+            'user_name' => $user->full_name,
             'user_email' => $user->email,
             'export_date' => now()->toISOString(),
             'date_range' => [

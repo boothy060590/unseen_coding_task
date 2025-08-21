@@ -136,7 +136,7 @@ class UserRepository implements UserRepositoryInterface
     public function search(string $query, int $limit = 50): Collection
     {
         return User::where(function (Builder $builder) use ($query) {
-            $builder->where('name', 'LIKE', "%{$query}%")
+            $builder->whereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$query}%"])
                 ->orWhere('email', 'LIKE', "%{$query}%");
         })
         ->limit($limit)

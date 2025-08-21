@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 use Spatie\Sluggable\HasSlug;
 use Spatie\Sluggable\SlugOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -18,7 +19,8 @@ use Carbon\Carbon;
  *
  * @property int $id
  * @property int $user_id
- * @property string $name
+ * @property string $first_name
+ * @property string $last_name
  * @property string $email
  * @property string|null $phone
  * @property string|null $organization
@@ -38,7 +40,8 @@ class Customer extends Model
     use LogsActivity;
 
     protected $fillable = [
-        'name',
+        'first_name',
+        'last_name',
         'email',
         'phone',
         'organization',
@@ -57,7 +60,8 @@ class Customer extends Model
     protected static function booted(): void
     {
         static::creating(function (Customer $customer) {
-            if (!$customer->user_id && auth()->check()) {
+            if (!$customer->user_id) {
+                throw_if(!auth()->check(), new \Exception('Customer must have a user_id assigned'));
                 $customer->user_id = auth()->id();
             }
         });
@@ -72,10 +76,22 @@ class Customer extends Model
     public function getSlugOptions(): SlugOptions
     {
         return SlugOptions::create()
-            ->generateSlugsFrom('name')
+            ->generateSlugsFrom(['first_name', 'last_name'])
             ->saveSlugsTo('slug')
             ->doNotGenerateSlugsOnUpdate()
-            ->slugsShouldBeNoLongerThan(50);
+            ->slugsShouldBeNoLongerThan(50)
+            ->usingSeparator('-');
+    }
+
+    /**
+     * Generate slug with random suffix to ensure uniqueness
+     */
+    protected function generateNonUniqueSlug(): string
+    {
+        $baseSlug = Str::slug($this->full_name);
+        $randomSuffix = Str::random(8);
+
+        return $baseSlug . '-' . strtolower($randomSuffix);
     }
 
     public function getActivitylogOptions(): LogOptions
@@ -91,6 +107,26 @@ class Customer extends Model
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * Get the customer's full name
+     *
+     * @return string
+     */
+    public function getFullNameAttribute(): string
+    {
+        return trim($this->first_name . ' ' . $this->last_name);
+    }
+
+    /**
+     * Get the customer's display name (falls back to email if no names)
+     *
+     * @return string
+     */
+    public function getDisplayNameAttribute(): string
+    {
+        $fullName = $this->getFullNameAttribute();
+        return $fullName ?: $this->email;
+    }
 
     public function getRouteKeyName(): string
     {

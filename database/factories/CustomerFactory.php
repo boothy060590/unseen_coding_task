@@ -18,7 +18,8 @@ class CustomerFactory extends Factory
     {
         return [
             'user_id' => \App\Models\User::factory(),
-            'name' => fake()->name(),
+            'first_name' => fake()->firstName(),
+            'last_name' => fake()->lastName(),
             'email' => fake()->unique()->safeEmail(),
             'phone' => fake()->phoneNumber(),
             'organization' => fake()->company(),

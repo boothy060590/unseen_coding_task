@@ -325,7 +325,7 @@ class SearchService
     private function customerMatchesSearch(Customer $customer, string $query): bool
     {
         $searchableFields = [
-            $customer->name,
+            $customer->full_name,
             $customer->email,
             $customer->phone,
             $customer->organization,
@@ -354,9 +354,9 @@ class SearchService
         $score = 0;
 
         // Name match gets highest score
-        if (stripos($customer->name, $query) !== false) {
+        if (stripos($customer->full_name, $query) !== false) {
             $score += 100;
-            if (stripos($customer->name, $query) === 0) {
+            if (stripos($customer->full_name, $query) === 0) {
                 $score += 50; // Bonus for starting with query
             }
         }

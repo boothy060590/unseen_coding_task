@@ -66,7 +66,7 @@ class AuditCustomerActivity implements ShouldQueue
     {
         $properties = array_merge([
             'customer_id' => $event->customer->id,
-            'customer_name' => $event->customer->name,
+            'customer_name' => $event->customer->full_name,
             'customer_email' => $event->customer->email,
             'source' => $event->context['source'] ?? 'web',
         ], $this->getRequestContext());
@@ -75,7 +75,7 @@ class AuditCustomerActivity implements ShouldQueue
             $event->user,
             $event->customer,
             'created',
-            "Customer '{$event->customer->name}' was created",
+            "Customer '{$event->customer->full_name}' was created",
             $properties
         );
     }
@@ -98,14 +98,14 @@ class AuditCustomerActivity implements ShouldQueue
 
         $properties = array_merge([
             'customer_id' => $event->customer->id,
-            'customer_name' => $event->customer->name,
+            'customer_name' => $event->customer->full_name,
             'changed_fields' => $changedFields,
             'changes' => $changes,
             'source' => $event->context['source'] ?? 'web',
         ], $this->getRequestContext());
 
         $fieldsText = implode(', ', $changedFields);
-        $description = "Customer '{$event->customer->name}' was updated. Changed fields: {$fieldsText}";
+        $description = "Customer '{$event->customer->full_name}' was updated. Changed fields: {$fieldsText}";
 
         $this->auditService->logCustomerActivity(
             $event->user,
@@ -126,7 +126,7 @@ class AuditCustomerActivity implements ShouldQueue
     {
         $properties = array_merge([
             'customer_id' => $event->customer->id,
-            'customer_name' => $event->customer->name,
+            'customer_name' => $event->customer->full_name,
             'customer_email' => $event->customer->email,
             'deleted_data' => $event->customer->toArray(),
             'source' => $event->context['source'] ?? 'web',
@@ -136,7 +136,7 @@ class AuditCustomerActivity implements ShouldQueue
             $event->user,
             $event->customer,
             'deleted',
-            "Customer '{$event->customer->name}' was deleted",
+            "Customer '{$event->customer->full_name}' was deleted",
             $properties
         );
     }
@@ -173,7 +173,7 @@ class AuditCustomerActivity implements ShouldQueue
 
         // Fields we want to track changes for
         $trackableFields = [
-            'name', 'email', 'phone', 'organization', 
+            'first_name', 'last_name', 'email', 'phone', 'organization', 
             'job_title', 'birthdate', 'notes'
         ];
 
