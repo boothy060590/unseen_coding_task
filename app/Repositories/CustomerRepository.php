@@ -24,7 +24,7 @@ class CustomerRepository implements CustomerRepositoryInterface
     public function getAllForUser(User $user, array $filters = []): Collection
     {
         $query = $this->buildUserQuery($user);
-        
+
         return $this->applyFilters($query, $filters)->get();
     }
 
@@ -39,7 +39,7 @@ class CustomerRepository implements CustomerRepositoryInterface
     public function getPaginatedForUser(User $user, array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
         $query = $this->buildUserQuery($user);
-        
+
         return $this->applyFilters($query, $filters)->paginate($perPage);
     }
 
@@ -77,7 +77,7 @@ class CustomerRepository implements CustomerRepositoryInterface
     public function createForUser(User $user, array $data): Customer
     {
         $data['user_id'] = $user->id;
-        
+
         return Customer::create($data);
     }
 
@@ -97,7 +97,7 @@ class CustomerRepository implements CustomerRepositoryInterface
         }
 
         $customer->update($data);
-        
+
         return $customer->fresh();
     }
 
@@ -230,12 +230,13 @@ class CustomerRepository implements CustomerRepositoryInterface
         // Apply sorting
         $sortBy = $filters['sort_by'] ?? 'name';
         $sortDirection = $filters['sort_direction'] ?? 'asc';
-        
-        $validSorts = ['name', 'email', 'organization', 'job_title', 'created_at', 'updated_at'];
+
+        $validSorts = ['email', 'organization', 'job_title', 'created_at', 'updated_at'];
+
         if (in_array($sortBy, $validSorts, true)) {
             $query->orderBy($sortBy, $sortDirection);
         } else {
-            $query->orderBy('name', 'asc');
+            $query->orderByRaw("CONCAT(first_name, ' ', last_name)");
         }
 
         return $query;
