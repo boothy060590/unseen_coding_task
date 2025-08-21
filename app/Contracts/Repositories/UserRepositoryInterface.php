@@ -4,12 +4,30 @@ namespace App\Contracts\Repositories;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
  * Interface for User repository operations
  */
 interface UserRepositoryInterface
 {
+    /**
+     * Get all users with optional filtering
+     *
+     * @param array<string, mixed> $filters
+     * @return Collection<int, User>
+     */
+    public function getAllWithFilters(array $filters = []): Collection;
+
+    /**
+     * Get paginated users with optional filtering
+     *
+     * @param array<string, mixed> $filters
+     * @param int $perPage
+     * @return LengthAwarePaginator
+     */
+    public function getPaginatedWithFilters(array $filters = [], int $perPage = 15): LengthAwarePaginator;
+
     /**
      * Find a user by ID
      *
