@@ -6,6 +6,7 @@ use App\Contracts\Repositories\AuditRepositoryInterface;
 use App\Models\Customer;
 use App\Models\User;
 use App\Services\CacheService;
+use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Spatie\Activitylog\Models\Activity;
@@ -16,24 +17,16 @@ use Spatie\Activitylog\Models\Activity;
 class CachedAuditRepository implements AuditRepositoryInterface
 {
     /**
-     * Cache TTL in seconds (15 minutes - shorter than other entities as audit data changes frequently)
-     */
-    private const CACHE_TTL = 900;
-
-    /**
-     * Short cache TTL for very dynamic data (5 minutes)
-     */
-    private const SHORT_CACHE_TTL = 300;
-
-    /**
      * Constructor
      *
      * @param AuditRepositoryInterface $repository
      * @param CacheService $cacheService
+     * @param ConfigRepository $config
      */
     public function __construct(
         private AuditRepositoryInterface $repository,
-        private CacheService $cacheService
+        private CacheService $cacheService,
+        private ConfigRepository $config
     ) {}
 
     /**
@@ -77,7 +70,7 @@ class CachedAuditRepository implements AuditRepositoryInterface
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             [...$cacheInfo['tags'], 'audit:recent'],
-            self::SHORT_CACHE_TTL,
+            $this->config->get('cache.ttl.audit', 900) / 3,
             fn() => $this->repository->getRecentUserActivities($user, $limit)
         );
     }
@@ -103,7 +96,7 @@ class CachedAuditRepository implements AuditRepositoryInterface
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             [...$cacheInfo['tags'], 'audit:date_range'],
-            self::CACHE_TTL * 4, // Longer TTL for historical data
+            $this->config->get('cache.ttl.audit', 900) * 4, // Longer TTL for historical data
             fn() => $this->repository->getActivitiesByDateRange($user, $fromDate, $toDate)
         );
     }
@@ -122,7 +115,7 @@ class CachedAuditRepository implements AuditRepositoryInterface
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             [...$cacheInfo['tags'], 'audit:event', "audit:event:{$event}"],
-            self::CACHE_TTL,
+            $this->config->get('cache.ttl.audit', 900),
             fn() => $this->repository->getActivitiesByEvent($user, $event)
         );
     }
@@ -140,7 +133,7 @@ class CachedAuditRepository implements AuditRepositoryInterface
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             [...$cacheInfo['tags'], 'audit:count'],
-            self::CACHE_TTL,
+            $this->config->get('cache.ttl.audit', 900),
             fn() => $this->repository->getActivityCountForUser($user)
         );
     }
@@ -158,7 +151,7 @@ class CachedAuditRepository implements AuditRepositoryInterface
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             [...$cacheInfo['tags'], 'audit:count', 'audit:event'],
-            self::CACHE_TTL,
+            $this->config->get('cache.ttl.audit', 900),
             fn() => $this->repository->getActivityCountsByEvent($user)
         );
     }
@@ -177,7 +170,7 @@ class CachedAuditRepository implements AuditRepositoryInterface
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             [...$cacheInfo['tags'], "audit:activity:{$activityId}"],
-            self::CACHE_TTL,
+            $this->config->get('cache.ttl.audit', 900),
             fn() => $this->repository->findActivityForUser($user, $activityId)
         );
     }
@@ -196,7 +189,7 @@ class CachedAuditRepository implements AuditRepositoryInterface
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             [...$cacheInfo['tags'], 'audit:statistics'],
-            self::CACHE_TTL,
+            $this->config->get('cache.ttl.audit', 900),
             fn() => $this->repository->getMostActiveCustomers($user, $limit)
         );
     }
@@ -245,7 +238,7 @@ class CachedAuditRepository implements AuditRepositoryInterface
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             [...$cacheInfo['tags'], 'audit:multiple_customers'],
-            self::CACHE_TTL,
+            $this->config->get('cache.ttl.audit', 900),
             fn() => $this->repository->getActivitiesForCustomers($user, $customerIds)
         );
     }

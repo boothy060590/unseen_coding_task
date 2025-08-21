@@ -52,33 +52,37 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(CustomerRepositoryInterface::class, function ($app) {
             $baseRepository = new CustomerRepository();
             $cacheService = $app->make(CacheService::class);
+            $config = $app->make('config');
             
             // Wrap with cache decorator for better performance
-            return new CachedCustomerRepository($baseRepository, $cacheService);
+            return new CachedCustomerRepository($baseRepository, $cacheService, $config);
         });
 
         $this->app->bind(ImportRepositoryInterface::class, function ($app) {
             $baseRepository = new ImportRepository();
             $cacheService = $app->make(CacheService::class);
+            $config = $app->make('config');
             
             // Wrap with cache decorator for better performance
-            return new CachedImportRepository($baseRepository, $cacheService);
+            return new CachedImportRepository($baseRepository, $cacheService, $config);
         });
 
         $this->app->bind(ExportRepositoryInterface::class, function ($app) {
             $baseRepository = new ExportRepository();
             $cacheService = $app->make(CacheService::class);
+            $config = $app->make('config');
             
             // Wrap with cache decorator for better performance
-            return new CachedExportRepository($baseRepository, $cacheService);
+            return new CachedExportRepository($baseRepository, $cacheService, $config);
         });
 
         $this->app->bind(AuditRepositoryInterface::class, function ($app) {
             $baseRepository = new AuditRepository();
             $cacheService = $app->make(CacheService::class);
+            $config = $app->make('config');
             
             // Wrap with cache decorator for better performance
-            return new CachedAuditRepository($baseRepository, $cacheService);
+            return new CachedAuditRepository($baseRepository, $cacheService, $config);
         });
     }
 

@@ -6,6 +6,7 @@ use App\Contracts\Repositories\ImportRepositoryInterface;
 use App\Models\Import;
 use App\Models\User;
 use App\Services\CacheService;
+use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -15,24 +16,16 @@ use Illuminate\Database\Eloquent\Collection;
 class CachedImportRepository implements ImportRepositoryInterface
 {
     /**
-     * Cache TTL in seconds (30 minutes - shorter than customers due to frequent status changes)
-     */
-    private const CACHE_TTL = 1800;
-
-    /**
-     * Short cache TTL for frequently changing data (5 minutes)
-     */
-    private const SHORT_CACHE_TTL = 300;
-
-    /**
      * Constructor
      *
      * @param ImportRepositoryInterface $repository
      * @param CacheService $cacheService
+     * @param ConfigRepository $config
      */
     public function __construct(
         private ImportRepositoryInterface $repository,
-        private CacheService $cacheService
+        private CacheService $cacheService,
+        private ConfigRepository $config
     ) {}
 
     /**
@@ -48,7 +41,7 @@ class CachedImportRepository implements ImportRepositoryInterface
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             $cacheInfo['tags'],
-            self::CACHE_TTL,
+            $this->config->get('cache.ttl.imports', 1800),
             fn() => $this->repository->getAllForUser($user)
         );
     }
@@ -75,11 +68,14 @@ class CachedImportRepository implements ImportRepositoryInterface
      */
     public function findForUser(User $user, int $id): ?Import
     {
-        $cacheKey = $this->getCacheKey('find', $user->id, $id);
+        $cacheInfo = $this->cacheService->getImportCacheInfo($user->id, 'find', $id);
 
-        return $this->cache->remember($cacheKey, self::SHORT_CACHE_TTL, function () use ($user, $id) {
-            return $this->repository->findForUser($user, $id);
-        });
+        return $this->cacheService->rememberWithTags(
+            $cacheInfo['key'],
+            $cacheInfo['tags'],
+            $this->config->get('cache.ttl.imports', 1800) / 6, // Shorter TTL for status-changing data
+            fn() => $this->repository->findForUser($user, $id)
+        );
     }
 
     /**
@@ -93,8 +89,8 @@ class CachedImportRepository implements ImportRepositoryInterface
     {
         $import = $this->repository->createForUser($user, $data);
         
-        // Clear relevant cache entries
-        $this->clearUserCache($user);
+        // Clear import cache using improved invalidation
+        $this->cacheService->clearImportCache($user->id);
         
         return $import;
     }
@@ -111,8 +107,8 @@ class CachedImportRepository implements ImportRepositoryInterface
     {
         $updatedImport = $this->repository->updateForUser($user, $import, $data);
         
-        // Clear relevant cache entries
-        $this->clearImportCache($user, $import);
+        // Clear import cache using improved invalidation
+        $this->cacheService->clearImportCache($user->id);
         
         return $updatedImport;
     }
@@ -126,14 +122,19 @@ class CachedImportRepository implements ImportRepositoryInterface
      */
     public function getByStatusForUser(User $user, string $status): Collection
     {
-        $cacheKey = $this->getCacheKey('status', $user->id, $status);
+        $cacheInfo = $this->cacheService->getImportCacheInfo($user->id, 'status', $status);
 
         // Use shorter TTL for processing status as it changes frequently
-        $ttl = $status === 'processing' ? self::SHORT_CACHE_TTL : self::CACHE_TTL;
+        $ttl = $status === 'processing' 
+            ? $this->config->get('cache.ttl.imports', 1800) / 6  // 5 minutes
+            : $this->config->get('cache.ttl.imports', 1800);
 
-        return $this->cache->remember($cacheKey, $ttl, function () use ($user, $status) {
-            return $this->repository->getByStatusForUser($user, $status);
-        });
+        return $this->cacheService->rememberWithTags(
+            $cacheInfo['key'],
+            $cacheInfo['tags'],
+            $ttl,
+            fn() => $this->repository->getByStatusForUser($user, $status)
+        );
     }
 
     /**
@@ -145,11 +146,14 @@ class CachedImportRepository implements ImportRepositoryInterface
      */
     public function getRecentForUser(User $user, int $limit = 10): Collection
     {
-        $cacheKey = $this->getCacheKey('recent', $user->id, $limit);
+        $cacheInfo = $this->cacheService->getImportCacheInfo($user->id, 'recent', $limit);
 
-        return $this->cache->remember($cacheKey, self::SHORT_CACHE_TTL, function () use ($user, $limit) {
-            return $this->repository->getRecentForUser($user, $limit);
-        });
+        return $this->cacheService->rememberWithTags(
+            $cacheInfo['key'],
+            $cacheInfo['tags'],
+            $this->config->get('cache.ttl.imports', 1800) / 6, // Shorter TTL for recent data
+            fn() => $this->repository->getRecentForUser($user, $limit)
+        );
     }
 
     /**
@@ -160,11 +164,14 @@ class CachedImportRepository implements ImportRepositoryInterface
      */
     public function getCountForUser(User $user): int
     {
-        $cacheKey = $this->getCacheKey('count', $user->id);
+        $cacheInfo = $this->cacheService->getImportCacheInfo($user->id, 'count');
 
-        return $this->cache->remember($cacheKey, self::CACHE_TTL, function () use ($user) {
-            return $this->repository->getCountForUser($user);
-        });
+        return $this->cacheService->rememberWithTags(
+            $cacheInfo['key'],
+            $cacheInfo['tags'],
+            $this->config->get('cache.ttl.imports', 1800),
+            fn() => $this->repository->getCountForUser($user)
+        );
     }
 
     /**
@@ -187,59 +194,5 @@ class CachedImportRepository implements ImportRepositoryInterface
     public function getFailedForUser(User $user): Collection
     {
         return $this->getByStatusForUser($user, 'failed');
-    }
-
-    /**
-     * Generate cache key for import operations
-     *
-     * @param string $operation
-     * @param mixed ...$params
-     * @return string
-     */
-    private function getCacheKey(string $operation, mixed ...$params): string
-    {
-        $keyParts = ['import', $operation, ...array_map('strval', $params)];
-        
-        return implode(':', $keyParts);
-    }
-
-    /**
-     * Clear all cache entries for a user
-     *
-     * @param User $user
-     * @return void
-     */
-    private function clearUserCache(User $user): void
-    {
-        $keysToForget = [
-            $this->getCacheKey('all', $user->id),
-            $this->getCacheKey('count', $user->id),
-            $this->getCacheKey('recent', $user->id, 10),
-            $this->getCacheKey('recent', $user->id, 5), // Common limits
-            $this->getCacheKey('status', $user->id, 'pending'),
-            $this->getCacheKey('status', $user->id, 'processing'),
-            $this->getCacheKey('status', $user->id, 'completed'),
-            $this->getCacheKey('status', $user->id, 'failed'),
-        ];
-
-        foreach ($keysToForget as $key) {
-            $this->cache->forget($key);
-        }
-    }
-
-    /**
-     * Clear cache entries for a specific import
-     *
-     * @param User $user
-     * @param Import $import
-     * @return void
-     */
-    private function clearImportCache(User $user, Import $import): void
-    {
-        // Clear specific import cache
-        $this->cache->forget($this->getCacheKey('find', $user->id, $import->id));
-        
-        // Clear user-wide caches that might be affected
-        $this->clearUserCache($user);
     }
 }

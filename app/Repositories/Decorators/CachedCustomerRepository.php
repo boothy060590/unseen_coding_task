@@ -6,6 +6,7 @@ use App\Contracts\Repositories\CustomerRepositoryInterface;
 use App\Models\Customer;
 use App\Models\User;
 use App\Services\CacheService;
+use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -15,19 +16,16 @@ use Illuminate\Database\Eloquent\Collection;
 class CachedCustomerRepository implements CustomerRepositoryInterface
 {
     /**
-     * Cache TTL in seconds (1 hour)
-     */
-    private const CACHE_TTL = 3600;
-
-    /**
      * Constructor
      *
      * @param CustomerRepositoryInterface $repository
      * @param CacheService $cacheService
+     * @param ConfigRepository $config
      */
     public function __construct(
         private CustomerRepositoryInterface $repository,
-        private CacheService $cacheService
+        private CacheService $cacheService,
+        private ConfigRepository $config
     ) {}
 
     /**
@@ -49,7 +47,7 @@ class CachedCustomerRepository implements CustomerRepositoryInterface
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             $cacheInfo['tags'],
-            self::CACHE_TTL,
+            $this->config->get('cache.ttl.customers', 3600),
             fn() => $this->repository->getAllForUser($user, $filters)
         );
     }
@@ -82,7 +80,7 @@ class CachedCustomerRepository implements CustomerRepositoryInterface
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             $cacheInfo['tags'],
-            self::CACHE_TTL,
+            $this->config->get('cache.ttl.customers', 3600),
             fn() => $this->repository->findForUser($user, $id)
         );
     }
@@ -101,7 +99,7 @@ class CachedCustomerRepository implements CustomerRepositoryInterface
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             $cacheInfo['tags'],
-            self::CACHE_TTL,
+            $this->config->get('cache.ttl.customers', 3600),
             fn() => $this->repository->findBySlugForUser($user, $slug)
         );
     }
@@ -175,7 +173,7 @@ class CachedCustomerRepository implements CustomerRepositoryInterface
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             $cacheInfo['tags'],
-            self::CACHE_TTL / 2, // Shorter TTL for search results
+            $this->config->get('cache.ttl.search', 300),
             fn() => $this->repository->searchForUser($user, $query, $limit)
         );
     }
@@ -193,7 +191,7 @@ class CachedCustomerRepository implements CustomerRepositoryInterface
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             $cacheInfo['tags'],
-            self::CACHE_TTL,
+            $this->config->get('cache.ttl.customers', 3600),
             fn() => $this->repository->getCountForUser($user)
         );
     }
@@ -212,7 +210,7 @@ class CachedCustomerRepository implements CustomerRepositoryInterface
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             $cacheInfo['tags'],
-            self::CACHE_TTL,
+            $this->config->get('cache.ttl.customers', 3600),
             fn() => $this->repository->getByOrganizationForUser($user, $organization)
         );
     }
@@ -231,7 +229,7 @@ class CachedCustomerRepository implements CustomerRepositoryInterface
         return $this->cacheService->rememberWithTags(
             $cacheInfo['key'],
             $cacheInfo['tags'],
-            self::CACHE_TTL / 4, // Shorter TTL for recent data
+            $this->config->get('cache.ttl.customers', 3600) / 4,
             fn() => $this->repository->getRecentForUser($user, $limit)
         );
     }
