@@ -2,11 +2,12 @@
 
 namespace App\Contracts\Repositories;
 
+use App\Models\Activity;
 use App\Models\Customer;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
-use Spatie\Activitylog\Models\Activity;
+use Illuminate\Support\Collection as SupportCollection;
 
 /**
  * Interface for Audit repository operations with user scoping
@@ -90,9 +91,9 @@ interface AuditRepositoryInterface
      *
      * @param User $user
      * @param int $limit
-     * @return Collection<int, array>
+     * @return SupportCollection<int, array>
      */
-    public function getMostActiveCustomers(User $user, int $limit = 5): Collection;
+    public function getMostActiveCustomers(User $user, int $limit = 5): SupportCollection;
 
     /**
      * Log custom activity for a customer

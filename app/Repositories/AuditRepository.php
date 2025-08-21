@@ -8,7 +8,8 @@ use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Builder;
-use Spatie\Activitylog\Models\Activity;
+use App\Models\Activity;
+use Illuminate\Support\Collection as SupportCollection;
 
 /**
  * Repository for Audit operations using Spatie Activity Log with user scoping
@@ -38,6 +39,35 @@ class AuditRepository implements AuditRepositoryInterface
     }
 
     /**
+     * Get all activities for a user with optional filtering
+     *
+     * @param User $user
+     * @param array<string, mixed> $filters
+     * @return Collection<int, Activity>
+     */
+    public function getAllForUser(User $user, array $filters = []): Collection
+    {
+        $query = $this->buildUserActivityQuery($user);
+
+        return $this->applyFilters($query, $filters)->get();
+    }
+
+    /**
+     * Get paginated activities for a user with optional filtering
+     *
+     * @param User $user
+     * @param array<string, mixed> $filters
+     * @param int $perPage
+     * @return LengthAwarePaginator
+     */
+    public function getPaginatedForUser(User $user, array $filters = [], int $perPage = 15): LengthAwarePaginator
+    {
+        $query = $this->buildUserActivityQuery($user);
+
+        return $this->applyFilters($query, $filters)->paginate($perPage);
+    }
+
+    /**
      * Get all audit activities for a user's customers
      *
      * @param User $user
@@ -46,10 +76,7 @@ class AuditRepository implements AuditRepositoryInterface
      */
     public function getUserAuditTrail(User $user, int $perPage = 15): LengthAwarePaginator
     {
-        return $this->buildUserActivityQuery($user)
-            ->with(['causer', 'subject'])
-            ->latest()
-            ->paginate($perPage);
+        return $this->getPaginatedForUser($user, [], $perPage);
     }
 
     /**
@@ -61,11 +88,7 @@ class AuditRepository implements AuditRepositoryInterface
      */
     public function getRecentUserActivities(User $user, int $limit = 10): Collection
     {
-        return $this->buildUserActivityQuery($user)
-            ->with(['causer', 'subject'])
-            ->latest()
-            ->limit($limit)
-            ->get();
+        return $this->getAllForUser($user, ['limit' => $limit]);
     }
 
     /**
@@ -78,11 +101,12 @@ class AuditRepository implements AuditRepositoryInterface
      */
     public function getActivitiesByDateRange(User $user, \DateTimeInterface $fromDate, \DateTimeInterface $toDate): Collection
     {
-        return $this->buildUserActivityQuery($user)
-            ->whereBetween('created_at', [$fromDate, $toDate])
-            ->with(['causer', 'subject'])
-            ->orderBy('created_at')
-            ->get();
+        return $this->getAllForUser($user, [
+            'date_from' => $fromDate,
+            'date_to' => $toDate,
+            'sort_by' => 'created_at',
+            'sort_direction' => 'asc'
+        ]);
     }
 
     /**
@@ -94,11 +118,7 @@ class AuditRepository implements AuditRepositoryInterface
      */
     public function getActivitiesByEvent(User $user, string $event): Collection
     {
-        return $this->buildUserActivityQuery($user)
-            ->where('event', $event)
-            ->with(['causer', 'subject'])
-            ->latest()
-            ->get();
+        return $this->getAllForUser($user, ['event' => $event]);
     }
 
     /**
@@ -149,9 +169,9 @@ class AuditRepository implements AuditRepositoryInterface
      *
      * @param User $user
      * @param int $limit
-     * @return Collection<int, array>
+     * @return SupportCollection<int, array>
      */
-    public function getMostActiveCustomers(User $user, int $limit = 5): Collection
+    public function getMostActiveCustomers(User $user, int $limit = 5): SupportCollection
     {
         $activities = $this->buildUserActivityQuery($user)
             ->with('subject')
@@ -216,11 +236,7 @@ class AuditRepository implements AuditRepositoryInterface
      */
     public function getActivitiesForCustomers(User $user, array $customerIds): Collection
     {
-        return $this->buildUserActivityQuery($user)
-            ->whereIn('subject_id', $customerIds)
-            ->with(['causer', 'subject'])
-            ->latest()
-            ->get();
+        return $this->getAllForUser($user, ['customer_ids' => $customerIds]);
     }
 
     /**
@@ -245,5 +261,52 @@ class AuditRepository implements AuditRepositoryInterface
     {
         return Activity::where('subject_type', Customer::class)
             ->where('subject_id', $customer->id);
+    }
+
+    /**
+     * Apply filters to the activity query
+     *
+     * @param Builder $query
+     * @param array<string, mixed> $filters
+     * @return Builder
+     */
+    private function applyFilters(Builder $query, array $filters): Builder
+    {
+        // Always eager load relationships
+        $query->with(['causer', 'subject']);
+
+        if (isset($filters['event']) && $filters['event']) {
+            $query->where('event', $filters['event']);
+        }
+
+        if (isset($filters['customer_ids']) && is_array($filters['customer_ids'])) {
+            $query->whereIn('subject_id', $filters['customer_ids']);
+        }
+
+        if (isset($filters['date_from'])) {
+            $query->where('created_at', '>=', $filters['date_from']);
+        }
+
+        if (isset($filters['date_to'])) {
+            $query->where('created_at', '<=', $filters['date_to']);
+        }
+
+        if (isset($filters['limit']) && is_numeric($filters['limit'])) {
+            $query->limit((int) $filters['limit']);
+        }
+
+        // Apply sorting
+        $sortBy = $filters['sort_by'] ?? 'created_at';
+        $sortDirection = $filters['sort_direction'] ?? 'desc';
+
+        $validSorts = ['created_at', 'event', 'id'];
+
+        if (in_array($sortBy, $validSorts, true)) {
+            $query->orderBy($sortBy, $sortDirection);
+        } else {
+            $query->latest();
+        }
+
+        return $query;
     }
 }
