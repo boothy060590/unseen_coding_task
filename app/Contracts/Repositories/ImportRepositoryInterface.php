@@ -13,21 +13,23 @@ use Illuminate\Database\Eloquent\Collection;
 interface ImportRepositoryInterface
 {
     /**
-     * Get all imports for a specific user
+     * Get all imports for a specific user with optional filtering
      *
      * @param User $user
+     * @param array<string, mixed> $filters
      * @return Collection<int, Import>
      */
-    public function getAllForUser(User $user): Collection;
+    public function getAllForUser(User $user, array $filters = []): Collection;
 
     /**
-     * Get paginated imports for a specific user
+     * Get paginated imports for a specific user with optional filtering
      *
      * @param User $user
+     * @param array<string, mixed> $filters
      * @param int $perPage
      * @return LengthAwarePaginator
      */
-    public function getPaginatedForUser(User $user, int $perPage = 15): LengthAwarePaginator;
+    public function getPaginatedForUser(User $user, array $filters = [], int $perPage = 15): LengthAwarePaginator;
 
     /**
      * Find an import by ID for a specific user

@@ -15,6 +15,25 @@ use Illuminate\Support\Collection as SupportCollection;
 interface AuditRepositoryInterface
 {
     /**
+     * Get all audit activities for a user with optional filtering
+     *
+     * @param User $user
+     * @param array<string, mixed> $filters
+     * @return Collection<int, Activity>
+     */
+    public function getAllForUser(User $user, array $filters = []): Collection;
+
+    /**
+     * Get paginated audit activities for a user with optional filtering
+     *
+     * @param User $user
+     * @param array<string, mixed> $filters
+     * @param int $perPage
+     * @return LengthAwarePaginator
+     */
+    public function getPaginatedForUser(User $user, array $filters = [], int $perPage = 15): LengthAwarePaginator;
+
+    /**
      * Get audit trail for a specific customer
      *
      * @param User $user
@@ -33,33 +52,6 @@ interface AuditRepositoryInterface
      */
     public function getUserAuditTrail(User $user, int $perPage = 15): LengthAwarePaginator;
 
-    /**
-     * Get recent audit activities for a user
-     *
-     * @param User $user
-     * @param int $limit
-     * @return Collection<int, Activity>
-     */
-    public function getRecentUserActivities(User $user, int $limit = 10): Collection;
-
-    /**
-     * Get audit activities by date range for a user
-     *
-     * @param User $user
-     * @param \DateTimeInterface $fromDate
-     * @param \DateTimeInterface $toDate
-     * @return Collection<int, Activity>
-     */
-    public function getActivitiesByDateRange(User $user, \DateTimeInterface $fromDate, \DateTimeInterface $toDate): Collection;
-
-    /**
-     * Get audit activities by event type for a user
-     *
-     * @param User $user
-     * @param string $event
-     * @return Collection<int, Activity>
-     */
-    public function getActivitiesByEvent(User $user, string $event): Collection;
 
     /**
      * Get audit activity count for a user
@@ -113,12 +105,4 @@ interface AuditRepositoryInterface
         array $properties = []
     ): Activity;
 
-    /**
-     * Get activities for multiple customers
-     *
-     * @param User $user
-     * @param array<int> $customerIds
-     * @return Collection<int, Activity>
-     */
-    public function getActivitiesForCustomers(User $user, array $customerIds): Collection;
 }

@@ -35,7 +35,7 @@ class ImportService
      */
     public function getDashboardData(User $user): array
     {
-        $imports = $this->importRepository->getPaginatedForUser($user);
+        $imports = $this->importRepository->getPaginatedForUser($user, []);
         $recentImports = $this->importRepository->getRecentForUser($user, 5);
         $stats = $this->getImportStatistics($user);
 
@@ -176,7 +176,7 @@ class ImportService
      */
     public function getImportStatistics(User $user): array
     {
-        $allImports = $this->importRepository->getAllForUser($user);
+        $allImports = $this->importRepository->getAllForUser($user, []);
         $completedImports = $this->importRepository->getCompletedForUser($user);
         $failedImports = $this->importRepository->getFailedForUser($user);
 
@@ -217,7 +217,7 @@ class ImportService
      */
     public function getPaginatedImports(User $user, int $perPage = 15): LengthAwarePaginator
     {
-        return $this->importRepository->getPaginatedForUser($user, $perPage);
+        return $this->importRepository->getPaginatedForUser($user, [], $perPage);
     }
 
     /**

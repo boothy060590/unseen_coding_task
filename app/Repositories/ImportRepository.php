@@ -15,26 +15,32 @@ use Illuminate\Database\Eloquent\Builder;
 class ImportRepository implements ImportRepositoryInterface
 {
     /**
-     * Get all imports for a specific user
+     * Get all imports for a specific user with optional filtering
      *
      * @param User $user
+     * @param array<string, mixed> $filters
      * @return Collection<int, Import>
      */
-    public function getAllForUser(User $user): Collection
+    public function getAllForUser(User $user, array $filters = []): Collection
     {
-        return $this->buildUserQuery($user)->latest()->get();
+        $query = $this->buildUserQuery($user);
+
+        return $this->applyFilters($query, $filters)->get();
     }
 
     /**
-     * Get paginated imports for a specific user
+     * Get paginated imports for a specific user with optional filtering
      *
      * @param User $user
+     * @param array<string, mixed> $filters
      * @param int $perPage
      * @return LengthAwarePaginator
      */
-    public function getPaginatedForUser(User $user, int $perPage = 15): LengthAwarePaginator
+    public function getPaginatedForUser(User $user, array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-        return $this->buildUserQuery($user)->latest()->paginate($perPage);
+        $query = $this->buildUserQuery($user);
+
+        return $this->applyFilters($query, $filters)->paginate($perPage);
     }
 
     /**
@@ -92,10 +98,7 @@ class ImportRepository implements ImportRepositoryInterface
      */
     public function getByStatusForUser(User $user, string $status): Collection
     {
-        return $this->buildUserQuery($user)
-            ->where('status', $status)
-            ->latest()
-            ->get();
+        return $this->getAllForUser($user, ['status' => $status]);
     }
 
     /**
@@ -107,10 +110,7 @@ class ImportRepository implements ImportRepositoryInterface
      */
     public function getRecentForUser(User $user, int $limit = 10): Collection
     {
-        return $this->buildUserQuery($user)
-            ->latest()
-            ->limit($limit)
-            ->get();
+        return $this->getAllForUser($user, ['limit' => $limit]);
     }
 
     /**
@@ -155,5 +155,45 @@ class ImportRepository implements ImportRepositoryInterface
     private function buildUserQuery(User $user): Builder
     {
         return Import::where('user_id', $user->id);
+    }
+
+    /**
+     * Apply filters to the import query
+     *
+     * @param Builder $query
+     * @param array<string, mixed> $filters
+     * @return Builder
+     */
+    private function applyFilters(Builder $query, array $filters): Builder
+    {
+        if (isset($filters['status']) && $filters['status']) {
+            $query->where('status', $filters['status']);
+        }
+
+        if (isset($filters['date_from'])) {
+            $query->where('created_at', '>=', $filters['date_from']);
+        }
+
+        if (isset($filters['date_to'])) {
+            $query->where('created_at', '<=', $filters['date_to']);
+        }
+
+        if (isset($filters['limit']) && is_numeric($filters['limit'])) {
+            $query->limit((int) $filters['limit']);
+        }
+
+        // Apply sorting
+        $sortBy = $filters['sort_by'] ?? 'created_at';
+        $sortDirection = $filters['sort_direction'] ?? 'desc';
+
+        $validSorts = ['created_at', 'updated_at', 'status', 'filename', 'total_rows', 'successful_rows', 'failed_rows'];
+
+        if (in_array($sortBy, $validSorts, true)) {
+            $query->orderBy($sortBy, $sortDirection);
+        } else {
+            $query->latest();
+        }
+
+        return $query;
     }
 }
