@@ -204,10 +204,8 @@ class CustomerRepository implements CustomerRepositoryInterface
         if (isset($filters['search']) && $filters['search']) {
             $query->where(function (Builder $builder) use ($filters) {
                 $searchTerm = $filters['search'];
-                $builder->where('name', 'LIKE', "%{$searchTerm}%")
-                    ->orWhere('email', 'LIKE', "%{$searchTerm}%")
-                    ->orWhere('organization', 'LIKE', "%{$searchTerm}%")
-                    ->orWhere('job_title', 'LIKE', "%{$searchTerm}%");
+                $builder->whereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", "%{$searchTerm}%")
+                    ->orWhere('email', 'LIKE', "%{$searchTerm}%");
             });
         }
 
