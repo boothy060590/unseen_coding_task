@@ -221,10 +221,10 @@ class ExportService
     private function generateCsvContent($customers): string
     {
         $output = fopen('php://temp', 'r+');
-        
+
         // Header
         fputcsv($output, [
-            'first_name', 'last_name', 'email', 'phone', 
+            'first_name', 'last_name', 'email', 'phone',
             'organization', 'job_title', 'birthdate', 'notes', 'created_at'
         ]);
 
@@ -270,7 +270,7 @@ class ExportService
                 'birthdate' => $customer->birthdate?->format('Y-m-d'),
                 'notes' => $customer->notes,
                 'created_at' => $customer->created_at->toISOString(),
-                'updated_at' => $customer->updated_at->toISOString()
+                'updated_at' => $customer->updated_at?->toISOString()
             ];
         });
 
@@ -426,10 +426,10 @@ class ExportService
 
         $filePath = $export->file_path;
         $fileName = $export->filename ?? basename($filePath);
-        
+
         // Get file content from storage
         $content = $this->storage->get($filePath);
-        
+
         // Determine content type based on format
         $contentType = match($export->format) {
             'csv' => 'text/csv',

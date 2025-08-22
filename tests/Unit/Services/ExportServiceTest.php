@@ -152,21 +152,20 @@ class ExportServiceTest extends TestCase
     public function testCompleteExport(): void
     {
         $export = new Export(['id' => 1, 'user_id' => 1, 'status' => 'processing']);
-        $filePath = '/exports/test.csv';
-        $downloadUrl = 'https://example.com/download/test.csv';
+        $filePath = 'exports/1/customers_export_2025-08-22_15-51-38.csv';
+        $downloadUrl = '/downloads/exports/1/customers_export_2025-08-22_15-51-38.csv';
         $completedExport = new Export(['id' => 1, 'status' => 'completed']);
 
         $this->mockExportRepository->expects($this->once())
             ->method('updateForUser')
-            ->with($this->user, $export, $this->callback(function ($data) use ($filePath, $downloadUrl) {
+            ->with($this->user, $export, $this->callback(function ($data) use ($filePath) {
                 return $data['status'] === 'completed' &&
                        $data['file_path'] === $filePath &&
-                       $data['download_url'] === $downloadUrl &&
                        isset($data['completed_at']);
             }))
             ->willReturn($completedExport);
 
-        $result = $this->service->completeExport($this->user, $export, $filePath, $downloadUrl);
+        $result = $this->service->completeExport($this->user, $export, ['file_path' => $filePath]);
 
         $this->assertSame($completedExport, $result);
     }
@@ -248,8 +247,8 @@ class ExportServiceTest extends TestCase
         $result = $this->service->generateExportContent($this->user, $export);
 
         $this->assertIsString($result);
-        $this->assertStringContainsString('Name,Email,Phone', $result); // CSV headers
-        $this->assertStringContainsString('John Doe,john@example.com', $result);
+        $this->assertStringContainsString('first_name,last_name,email,phone', $result); // CSV headers
+        $this->assertStringContainsString('John,Doe,john@example.com,123-456-7890', $result);
     }
 
     public function testGenerateExportContentWithJsonFormat(): void
@@ -283,8 +282,8 @@ class ExportServiceTest extends TestCase
         $decoded = json_decode($result, true);
         $this->assertIsArray($decoded);
         $this->assertArrayHasKey('customers', $decoded);
-        $this->assertArrayHasKey('total', $decoded);
-        $this->assertSame(1, $decoded['total']);
+        $this->assertArrayHasKey('total_records', $decoded);
+        $this->assertSame(1, $decoded['total_records']);
     }
 
     public function testGenerateExportContentWithUnsupportedFormatThrowsException(): void

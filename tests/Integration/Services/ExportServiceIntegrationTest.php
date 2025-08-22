@@ -97,13 +97,15 @@ class ExportServiceIntegrationTest extends TestCase
 
         // Test header
         $header = str_getcsv($lines[0]);
-        $this->assertContains('Name', $header);
-        $this->assertContains('Email', $header);
-        $this->assertContains('Phone', $header);
+        $this->assertContains('first_name', $header);
+        $this->assertContains('last_name', $header);
+        $this->assertContains('email', $header);
+        $this->assertContains('phone', $header);
 
         // Test data row
         $dataRow = str_getcsv($lines[1]);
-        $this->assertContains('John Doe', $dataRow);
+        $this->assertContains('John', $dataRow);
+        $this->assertContains('Doe', $dataRow);
         $this->assertContains('john@example.com', $dataRow);
         $this->assertContains('123-456-7890', $dataRow);
         $this->assertContains('Acme Corp', $dataRow);
@@ -145,14 +147,15 @@ class ExportServiceIntegrationTest extends TestCase
         $decoded = json_decode($result, true);
         $this->assertIsArray($decoded);
         $this->assertArrayHasKey('customers', $decoded);
-        $this->assertArrayHasKey('total', $decoded);
-        $this->assertArrayHasKey('exported_at', $decoded);
+        $this->assertArrayHasKey('total_records', $decoded);
+        $this->assertArrayHasKey('export_date', $decoded);
 
-        $this->assertSame(1, $decoded['total']);
+        $this->assertSame(1, $decoded['total_records']);
         $this->assertCount(1, $decoded['customers']);
 
         $customer = $decoded['customers'][0];
-        $this->assertSame('Jane Smith', $customer['name']);
+        $this->assertSame('Jane', $customer['first_name']);
+        $this->assertSame('Smith', $customer['last_name']);
         $this->assertSame('jane@example.com', $customer['email']);
         $this->assertSame('Beta Inc', $customer['organization']);
     }
@@ -239,12 +242,14 @@ class ExportServiceIntegrationTest extends TestCase
             ->with($this->user, $export, $this->callback(function ($data) use ($testFilePath, $downloadUrl) {
                 return $data['status'] === 'completed' &&
                        $data['file_path'] === $testFilePath &&
-                       $data['download_url'] === $downloadUrl &&
                        isset($data['completed_at']);
             }))
             ->willReturn($completedExport);
 
-        $result = $this->service->completeExport($this->user, $export, $testFilePath, $downloadUrl);
+        $result = $this->service->completeExport($this->user, $export, [
+            'file_path' => $testFilePath,
+            'download_url' => $downloadUrl
+        ]);
 
         $this->assertSame($completedExport, $result);
         $this->assertTrue($this->storage->exists($testFilePath));
@@ -312,12 +317,12 @@ class ExportServiceIntegrationTest extends TestCase
         $this->assertSame(1001, count($lines)); // Header + 1000 data rows
 
         // Verify header
-        $this->assertStringStartsWith('Name,Email,Phone', $lines[0]);
+        $this->assertStringStartsWith('first_name,last_name,email,phone,organization', $lines[0]);
 
         // Verify a few sample rows
-        $this->assertStringContainsString('Customer1 Test,customer1@example.com', $lines[1]);
-        $this->assertStringContainsString('Customer500 Test,customer500@example.com', $lines[500]);
-        $this->assertStringContainsString('Customer1000 Test,customer1000@example.com', $lines[1000]);
+        $this->assertStringContainsString('Customer1,Test,customer1@example.com', $lines[1]);
+        $this->assertStringContainsString('Customer500,Test,customer500@example.com', $lines[500]);
+        $this->assertStringContainsString('Customer1000,Test,customer1000@example.com', $lines[1000]);
     }
 
     public function testStorageErrorHandling(): void

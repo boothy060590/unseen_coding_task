@@ -82,6 +82,7 @@ class ImportServiceTest extends TestCase
         $file->method('getSize')->willReturn(1000); // 1KB
         $file->method('getMimeType')->willReturn('text/csv');
         $file->method('getClientOriginalExtension')->willReturn('csv');
+        $file->method('getRealPath')->willReturn('/tmp/test_file.csv');
         $file->method('storeAs')->willReturn('imports/user_1/2024/01/customers_20240101_120000.csv');
 
         $expectedImport = new Import(['id' => 1, 'filename' => 'customers_20240101_120000.csv']);
@@ -209,14 +210,21 @@ class ImportServiceTest extends TestCase
     public function testCompleteImport(): void
     {
         $import = new Import(['id' => 1, 'user_id' => 1, 'status' => 'processing']);
-        $finalStats = ['total_rows' => 100];
+        $finalStats = [
+            'processed_rows' => 100,
+            'successful_rows' => 95,
+            'failed_rows' => 5,
+            'errors' => ['Row 5: Invalid email format']
+        ];
         $completedImport = new Import(['id' => 1, 'status' => 'completed']);
 
         $this->mockRepository->expects($this->once())
             ->method('updateForUser')
             ->with($this->user, $import, $this->callback(function ($data) use ($finalStats) {
                 return $data['status'] === 'completed' &&
-                       $data['total_rows'] === 100 &&
+                       $data['processed_rows'] === 100 &&
+                       $data['successful_rows'] === 95 &&
+                       $data['failed_rows'] === 5 &&
                        isset($data['completed_at']);
             }))
             ->willReturn($completedImport);
@@ -419,6 +427,7 @@ class ImportServiceTest extends TestCase
         $file->method('getSize')->willReturn(1000);
         $file->method('getMimeType')->willReturn('text/csv');
         $file->method('getClientOriginalExtension')->willReturn('csv');
+        $file->method('getRealPath')->willReturn('/tmp/test_file.csv');
         $file->method('storeAs')->willReturn('imports/user_1/2024/01/test_file_20240101_120000.csv');
 
         $this->mockRepository->expects($this->once())
@@ -441,6 +450,7 @@ class ImportServiceTest extends TestCase
         $file->method('getSize')->willReturn(1000);
         $file->method('getMimeType')->willReturn('text/csv');
         $file->method('getClientOriginalExtension')->willReturn('csv');
+        $file->method('getRealPath')->willReturn('/tmp/test_file.csv');
 
         $file->expects($this->once())
             ->method('storeAs')
