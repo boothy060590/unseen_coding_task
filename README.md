@@ -76,10 +76,10 @@ This application uses **Laravel Sail** for containerized development with the fo
 - **Application**: http://localhost (port 80)
 - **MySQL**: localhost:3306
 - **Redis**: localhost:6379
-- **MinIO Console**: http://localhost:8900
-- **MinIO API**: http://localhost:9000
+- **MinIO Console**: http://localhost:8901
+- **MinIO API**: http://localhost:9001
 - **Mailpit UI**: http://localhost:8025
-- **ElasticMQ**: http://localhost:9324
+- **ElasticMQ**: http://localhost:9325
 - **Vite Dev Server**: http://localhost:5173
 
 ## Requirements
