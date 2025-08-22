@@ -54,7 +54,7 @@ cp .env.example .env
 ./vendor/bin/sail artisan migrate
 ./vendor/bin/sail npm run build
 
-# Visit http://localhost:8900 to create MinIO bucket 'unseen-code-task'
+# Visit http://localhost:8901 to create MinIO bucket 'unseen-code-task'
 # Then register at http://localhost/register
 ```
 
@@ -89,72 +89,24 @@ This application uses **Laravel Sail** for containerized development with the fo
 - Git
 - `.env.example` file (included in repository)
 
-## Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd unseen_code_task
-   ```
-
-2. **Start Docker containers**
-   ```bash
-   ./vendor/bin/sail up -d
-   ```
-
-3. **Environment Setup**
-   ```bash
-   # Create .env file from .env.example
-   cp .env.example .env
-   
-   # Generate application key
-   ./vendor/bin/sail artisan key:generate
-   ```
-
-4. **Install PHP dependencies**
-   ```bash
-   ./vendor/bin/sail composer install
-   ```
-
-5. **Install NPM dependencies**
-   ```bash
-   ./vendor/bin/sail npm install
-   ```
-
-6. **Database Setup**
-   ```bash
-   ./vendor/bin/sail artisan migrate
-   ```
-
-7. **Build frontend assets**
-   ```bash
-   ./vendor/bin/sail npm run build
-   ```
-
-8. **Setup MinIO Storage Buckets**
-   ```bash
-   # Access MinIO console at http://localhost:8900
-   # Username: sail, Password: password
-   # Create a bucket named 'unseen-code-task' for file storage
-   ```
-
-The application will be available at `http://localhost`
-
-### First-Time Setup Process
+## First-Time Setup Process
 
 When setting up the project for the first time, follow these steps in order:
 
 1. **Prerequisites**: Ensure Docker Desktop is running
-2. **Start containers**: `./vendor/bin/sail up -d`
-3. **Wait for services**: Give containers 10-15 seconds to fully start
-4. **Install dependencies**: Run `./vendor/bin/sail composer install` and `./vendor/bin/sail npm install`
-5. **Environment**: Create `.env` file from `.env.example` template
-6. **Generate key**: Run `./vendor/bin/sail artisan key:generate`
-7. **Database**: Execute `./vendor/bin/sail artisan migrate`
-8. **Build assets**: Run `./vendor/bin/sail npm run build`
-9. **Storage**: Set up MinIO bucket manually via web console
+2. **Quick Setup**: Follow the [Quick Start](#quick-start) section above
+3. **Post-Setup**: Complete the MinIO bucket configuration
 
 **Note**: The first run of `composer install` and `npm install` may take several minutes as it downloads all dependencies.
+
+### Post-Setup Configuration
+
+After running the setup, you'll need to:
+
+1. **Create MinIO Bucket**: Visit http://localhost:8901 and create a bucket named 'unseen-code-task'
+2. **Register User**: Go to http://localhost/register to create your first account
+3. **Verify Email**: Check Mailpit at http://localhost:8025 for verification emails
+4. **Start Using**: Once verified, you can log in and start managing customers
 
 ### Setup Troubleshooting
 
@@ -173,59 +125,6 @@ When setting up the project for the first time, follow these steps in order:
 ./vendor/bin/sail logs
 ```
 
-### Complete Setup Script
-
-For convenience, you can run this complete setup script:
-
-```bash
-#!/bin/bash
-# Complete setup script for Laravel Sail
-
-echo "🚀 Starting Laravel Sail setup..."
-
-# Start containers
-echo "📦 Starting Docker containers..."
-./vendor/bin/sail up -d
-
-# Wait for containers to be ready
-echo "⏳ Waiting for containers to be ready..."
-sleep 10
-
-# Install PHP dependencies
-echo "📚 Installing PHP dependencies..."
-./vendor/bin/sail composer install
-
-# Install NPM dependencies
-echo "📦 Installing NPM dependencies..."
-./vendor/bin/sail npm install
-
-# Create .env file
-echo "🔧 Creating .env file from .env.example..."
-cp .env.example .env
-
-# Generate application key
-echo "🔑 Generating application key..."
-./vendor/bin/sail artisan key:generate
-
-# Run database migrations
-echo "🗄️ Running database migrations..."
-./vendor/bin/sail artisan migrate
-
-# Build frontend assets
-echo "🏗️ Building frontend assets..."
-./vendor/bin/sail npm run build
-
-# Setup storage
-echo "💾 Setting up MinIO storage bucket..."
-echo "   Access MinIO console at http://localhost:8900"
-echo "   Username: sail, Password: password"
-echo "   Create a bucket named 'unseen-code-task' for file storage"
-
-echo "✅ Setup complete! Application available at http://localhost"
-echo "📧 Mailpit available at http://localhost:8025"
-echo "🗄️ MinIO Console available at http://localhost:8900"
-```
-
 **💡 Pro Tip**: We've also created an automated `setup.sh` script that handles the entire setup process. Simply run:
 
 ```bash
@@ -236,7 +135,7 @@ This script will:
 - Check Docker is running
 - Start all containers
 - Install dependencies
-- Create .env file if needed
+- Create .env file from .env.example
 - Run migrations
 - Build assets
 - Provide next steps
