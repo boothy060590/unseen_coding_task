@@ -39,7 +39,7 @@ For experienced developers who want to get up and running quickly:
 
 ```bash
 # Clone and setup
-git clone <repository-url>
+git clone git@github.com:boothy060590/unseen_coding_task.git
 cd unseen_code_task
 
 # Run automated setup (recommended)
