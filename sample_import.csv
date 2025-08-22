@@ -1,0 +1,6 @@
+first_name,last_name,email,phone,organization,job_title,birthdate,notes,created_at
+John,Smith,john.smith@example.com,+1-555-0101,Acme Corp,Senior Developer,1985-03-15,Experienced full-stack developer,2024-01-15 09:30:00
+Sarah,Johnson,sarah.johnson@techco.com,+1-555-0102,TechCo Solutions,Product Manager,1988-07-22,Expert in product strategy and roadmapping,2024-01-16 14:20:00
+Mike,Davis,mike.davis@startup.io,+1-555-0103,StartupIO,CTO,1982-11-08,Tech leader with 15+ years experience,2024-01-17 11:45:00
+Lisa,Wilson,lisa.wilson@consulting.biz,+1-555-0104,Wilson Consulting,Business Analyst,1990-09-30,Specializes in business process optimization,2024-01-18 16:10:00
+David,Brown,david.brown@enterprise.com,+1-555-0105,Enterprise Solutions Ltd,Software Architect,1979-12-03,Expert in enterprise architecture patterns,2024-01-19 10:15:00

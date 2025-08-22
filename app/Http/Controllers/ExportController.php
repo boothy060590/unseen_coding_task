@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\ProcessExportJob;
 use App\Models\Export;
 use App\Services\ExportService;
 use App\Services\SearchService;
@@ -58,8 +59,11 @@ class ExportController extends Controller
     public function store(ExportCustomersRequest $request): RedirectResponse
     {
         try {
+            $user = auth()->user();
+            
+            // Create export record
             $export = $this->exportService->createExport(
-                auth()->user(),
+                $user,
                 $request->get('format', 'csv'),
                 $request->get('filters', []),
                 [
@@ -68,9 +72,12 @@ class ExportController extends Controller
                 ]
             );
 
+            // Dispatch job to process export in background
+            ProcessExportJob::dispatch($export, $user);
+
             return redirect()
                 ->route('exports.show', $export->id)
-                ->with('success', 'Export started successfully. Generating file...');
+                ->with('success', 'Export queued successfully! File generation will begin shortly. You can check the status on this page.');
 
         } catch (\Exception $e) {
             return back()

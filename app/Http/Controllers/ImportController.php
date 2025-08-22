@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\ProcessImportJob;
 use App\Models\Import;
 use App\Services\ImportService;
 use App\Http\Requests\ImportCustomersRequest;
@@ -43,8 +44,11 @@ class ImportController extends Controller
     public function store(ImportCustomersRequest $request): RedirectResponse
     {
         try {
+            $user = auth()->user();
+            
+            // Create import record
             $import = $this->importService->createImport(
-                auth()->user(),
+                $user,
                 $request->file('file'),
                 [
                     'has_headers' => $request->boolean('has_headers', true),
@@ -54,9 +58,12 @@ class ImportController extends Controller
                 ]
             );
 
+            // Dispatch job to process import in background
+            ProcessImportJob::dispatch($import, $user);
+
             return redirect()
                 ->route('imports.show', $import->id)
-                ->with('success', 'Import started successfully. Processing file...');
+                ->with('success', 'Import queued successfully! Processing will begin shortly. You can check the status on this page.');
 
         } catch (ValidationException $e) {
             return back()

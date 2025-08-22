@@ -112,20 +112,24 @@ class ExportService
      *
      * @param User $user
      * @param Export $export
-     * @param string $filePath
-     * @param string $downloadUrl
+     * @param array<string, mixed> $result
      * @return Export
      */
-    public function completeExport(User $user, Export $export, string $filePath, string $downloadUrl): Export
+    public function completeExport(User $user, Export $export, array $result): Export
     {
         $this->validateUserOwnership($user, $export);
 
-        return $this->exportRepository->updateForUser($user, $export, [
+        $updateData = [
             'status' => 'completed',
-            'file_path' => $filePath,
-            'download_url' => $downloadUrl,
+            'file_path' => $result['file_path'],
             'completed_at' => now(),
-        ]);
+        ];
+
+        if (isset($result['file_size'])) {
+            $updateData['file_size'] = $result['file_size'];
+        }
+
+        return $this->exportRepository->updateForUser($user, $export, $updateData);
     }
 
     /**
@@ -142,8 +146,152 @@ class ExportService
 
         return $this->exportRepository->updateForUser($user, $export, [
             'status' => 'failed',
+            'error_message' => $errorMessage,
             'completed_at' => now(),
         ]);
+    }
+
+    /**
+     * Fail export with error message
+     *
+     * @param User $user
+     * @param Export $export
+     * @param string $errorMessage
+     * @return Export
+     */
+    public function failExport(User $user, Export $export, string $errorMessage): Export
+    {
+        return $this->markAsFailed($user, $export, $errorMessage);
+    }
+
+    /**
+     * Generate export file
+     *
+     * @param User $user
+     * @param Export $export
+     * @param CustomerService $customerService
+     * @return array<string, mixed>
+     * @throws \Exception
+     */
+    public function generateExportFile(User $user, Export $export, CustomerService $customerService): array
+    {
+        $this->validateUserOwnership($user, $export);
+
+        // Get customers based on export filters
+        $filters = $export->filters ?? [];
+        $customers = $this->customerRepository->getAllForUser($user, $filters);
+
+        if ($customers->isEmpty()) {
+            throw new \Exception('No customers found to export');
+        }
+
+        // Generate filename
+        $timestamp = now()->format('Y-m-d_H-i-s');
+        $filename = "customers_export_{$timestamp}.{$export->format}";
+        $filePath = "exports/{$user->id}/{$filename}";
+
+        // Generate file content based on format
+        $content = match ($export->format) {
+            'csv' => $this->generateCsvContent($customers),
+            'json' => $this->generateJsonContent($customers),
+            'xlsx' => $this->generateXlsxContent($customers),
+            default => throw new \Exception('Unsupported export format: ' . $export->format)
+        };
+
+        // Store the file
+        $this->storage->put($filePath, $content);
+
+        // Calculate file size
+        $fileSize = strlen($content);
+
+        return [
+            'file_path' => $filePath,
+            'filename' => $filename,
+            'total_records' => $customers->count(),
+            'file_size' => $fileSize
+        ];
+    }
+
+    /**
+     * Generate CSV content
+     *
+     * @param \Illuminate\Database\Eloquent\Collection $customers
+     * @return string
+     */
+    private function generateCsvContent($customers): string
+    {
+        $output = fopen('php://temp', 'r+');
+        
+        // Header
+        fputcsv($output, [
+            'first_name', 'last_name', 'email', 'phone', 
+            'organization', 'job_title', 'birthdate', 'notes', 'created_at'
+        ]);
+
+        // Data rows
+        foreach ($customers as $customer) {
+            fputcsv($output, [
+                $customer->first_name,
+                $customer->last_name,
+                $customer->email,
+                $customer->phone,
+                $customer->organization,
+                $customer->job_title,
+                $customer->birthdate?->format('Y-m-d'),
+                $customer->notes,
+                $customer->created_at->format('Y-m-d H:i:s')
+            ]);
+        }
+
+        rewind($output);
+        $content = stream_get_contents($output);
+        fclose($output);
+
+        return $content;
+    }
+
+    /**
+     * Generate JSON content
+     *
+     * @param \Illuminate\Database\Eloquent\Collection $customers
+     * @return string
+     */
+    private function generateJsonContent($customers): string
+    {
+        $data = $customers->map(function ($customer) {
+            return [
+                'first_name' => $customer->first_name,
+                'last_name' => $customer->last_name,
+                'full_name' => $customer->full_name,
+                'email' => $customer->email,
+                'phone' => $customer->phone,
+                'organization' => $customer->organization,
+                'job_title' => $customer->job_title,
+                'birthdate' => $customer->birthdate?->format('Y-m-d'),
+                'notes' => $customer->notes,
+                'created_at' => $customer->created_at->toISOString(),
+                'updated_at' => $customer->updated_at->toISOString()
+            ];
+        });
+
+        return json_encode([
+            'export_date' => now()->toISOString(),
+            'total_records' => $customers->count(),
+            'customers' => $data
+        ], JSON_PRETTY_PRINT);
+    }
+
+    /**
+     * Generate XLSX content (simplified - returns CSV for now)
+     *
+     * @param \Illuminate\Database\Eloquent\Collection $customers
+     * @return string
+     */
+    private function generateXlsxContent($customers): string
+    {
+        // For now, return CSV content
+        // In a real implementation, you'd use a library like PhpSpreadsheet
+        return $this->generateCsvContent($customers);
     }
 
     /**
@@ -191,7 +339,7 @@ class ExportService
         return match($export->format) {
             'csv' => $this->generateCsvContent($customers),
             'json' => $this->generateJsonContent($customers),
-            'xlsx' => $this->generateExcelContent($customers),
+            'xlsx' => $this->generateXlsxContent($customers),
             default => throw new \InvalidArgumentException("Unsupported export format: {$export->format}"),
         };
     }
@@ -268,9 +416,9 @@ class ExportService
      * Download export file
      *
      * @param Export $export
-     * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
+     * @return \Symfony\Component\HttpFoundation\Response
      */
-    public function downloadExport(Export $export): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    public function downloadExport(Export $export): \Symfony\Component\HttpFoundation\Response
     {
         if (!$this->fileExists($export)) {
             abort(404, 'Export file not found');
@@ -278,8 +426,22 @@ class ExportService
 
         $filePath = $export->file_path;
         $fileName = $export->filename ?? basename($filePath);
+        
+        // Get file content from storage
+        $content = $this->storage->get($filePath);
+        
+        // Determine content type based on format
+        $contentType = match($export->format) {
+            'csv' => 'text/csv',
+            'json' => 'application/json',
+            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            default => 'application/octet-stream'
+        };
 
-        return response()->download($this->storage->path($filePath), $fileName);
+        return response($content, 200)
+            ->header('Content-Type', $contentType)
+            ->header('Content-Disposition', 'attachment; filename="' . $fileName . '"')
+            ->header('Content-Length', strlen($content));
     }
 
     /**
@@ -334,90 +496,6 @@ class ExportService
         return "customers_export{$filterSuffix}_{$timestamp}.{$format}";
     }
 
-    /**
-     * Generate CSV content
-     *
-     * @param Collection $customers
-     * @return string
-     */
-    private function generateCsvContent(Collection $customers): string
-    {
-        $headers = ['Name', 'Email', 'Phone', 'Organization', 'Job Title', 'Birthdate', 'Notes', 'Created At'];
-        $content = implode(',', $headers) . "\n";
-
-        foreach ($customers as $customer) {
-            $row = [
-                $this->escapeCsvField($customer->full_name),
-                $this->escapeCsvField($customer->email),
-                $this->escapeCsvField($customer->phone ?? ''),
-                $this->escapeCsvField($customer->organization ?? ''),
-                $this->escapeCsvField($customer->job_title ?? ''),
-                $customer->birthdate?->format('Y-m-d') ?? '',
-                $this->escapeCsvField($customer->notes ?? ''),
-                $customer->created_at->format('Y-m-d H:i:s'),
-            ];
-
-            $content .= implode(',', $row) . "\n";
-        }
-
-        return $content;
-    }
-
-    /**
-     * Generate JSON content
-     *
-     * @param Collection $customers
-     * @return string
-     */
-    private function generateJsonContent(Collection $customers): string
-    {
-        $data = $customers->map(function ($customer) {
-            return [
-                'name' => $customer->full_name,
-                'email' => $customer->email,
-                'phone' => $customer->phone,
-                'organization' => $customer->organization,
-                'job_title' => $customer->job_title,
-                'birthdate' => $customer->birthdate?->format('Y-m-d'),
-                'notes' => $customer->notes,
-                'created_at' => $customer->created_at->format('Y-m-d H:i:s'),
-                'slug' => $customer->slug,
-            ];
-        });
-
-        return json_encode([
-            'customers' => $data,
-            'total' => $customers->count(),
-            'exported_at' => now()->toISOString(),
-        ], JSON_PRETTY_PRINT);
-    }
-
-    /**
-     * Generate Excel content (simplified - would typically use a library like PhpSpreadsheet)
-     *
-     * @param Collection $customers
-     * @return string
-     */
-    private function generateExcelContent(Collection $customers): string
-    {
-        // For now, return CSV content - in production, use PhpSpreadsheet
-        return $this->generateCsvContent($customers);
-    }
-
-    /**
-     * Escape CSV field
-     *
-     * @param string $field
-     * @return string
-     */
-    private function escapeCsvField(string $field): string
-    {
-        if (str_contains($field, ',') || str_contains($field, '"') || str_contains($field, "\n")) {
-            return '"' . str_replace('"', '""', $field) . '"';
-        }
-
-        return $field;
-    }
 
     /**
      * Validate user ownership of export

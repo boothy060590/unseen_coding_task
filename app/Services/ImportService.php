@@ -169,6 +169,117 @@ class ImportService
     }
 
     /**
+     * Fail import with error message
+     *
+     * @param User $user
+     * @param Import $import
+     * @param string $errorMessage
+     * @return Import
+     */
+    public function failImport(User $user, Import $import, string $errorMessage): Import
+    {
+        $this->validateUserOwnership($user, $import);
+
+        return $this->importRepository->updateForUser($user, $import, [
+            'status' => 'failed',
+            'error_message' => $errorMessage,
+            'completed_at' => now(),
+        ]);
+    }
+
+    /**
+     * Process import file and create customers
+     *
+     * @param User $user
+     * @param Import $import
+     * @param CustomerService $customerService
+     * @return array<string, mixed>
+     * @throws \Exception
+     */
+    public function processImportFile(User $user, Import $import, CustomerService $customerService): array
+    {
+        $this->validateUserOwnership($user, $import);
+
+        if (!$this->storage->exists($import->file_path)) {
+            throw new \Exception('Import file not found: ' . $import->file_path);
+        }
+
+        $fileContent = $this->storage->get($import->file_path);
+        $lines = array_filter(explode("\n", $fileContent));
+        
+        if (empty($lines)) {
+            throw new \Exception('Import file is empty');
+        }
+
+        // Parse header
+        $header = str_getcsv(array_shift($lines));
+        $expectedColumns = ['first_name', 'last_name', 'email', 'phone', 'organization', 'job_title', 'birthdate', 'notes'];
+        
+        // Validate header
+        $missingColumns = array_diff($expectedColumns, $header);
+        if (!empty($missingColumns)) {
+            throw new \Exception('Missing required columns: ' . implode(', ', $missingColumns));
+        }
+
+        $totalRows = count($lines);
+        $processedRows = 0;
+        $successfulRows = 0;
+        $failedRows = 0;
+        $errors = [];
+
+        // Update total rows count
+        $this->importRepository->updateForUser($user, $import, ['total_rows' => $totalRows]);
+
+        foreach ($lines as $lineNumber => $line) {
+            $processedRows++;
+            
+            try {
+                $data = str_getcsv($line);
+                
+                if (count($data) !== count($header)) {
+                    throw new \Exception("Row has " . count($data) . " columns, expected " . count($header));
+                }
+                
+                $customerData = array_combine($header, $data);
+                
+                // Clean and validate data
+                $customerData = array_map('trim', $customerData);
+                $customerData = array_filter($customerData, fn($value) => $value !== '');
+                
+                // Validate required fields
+                if (empty($customerData['first_name']) || empty($customerData['last_name']) || empty($customerData['email'])) {
+                    throw new \Exception('Missing required fields: first_name, last_name, or email');
+                }
+
+                // Create customer
+                $customerService->createCustomer($user, $customerData);
+                $successfulRows++;
+                
+            } catch (\Exception $e) {
+                $failedRows++;
+                $errors[] = [
+                    'row' => $lineNumber + 2, // +2 because we removed header and arrays are 0-indexed
+                    'error' => $e->getMessage(),
+                    'data' => $data ?? []
+                ];
+            }
+
+            // Update progress every 10 rows
+            if ($processedRows % 10 === 0) {
+                $this->updateProgress($user, $import, $processedRows, $successfulRows, $failedRows, $errors);
+            }
+        }
+
+        return [
+            'total_rows' => $totalRows,
+            'processed_rows' => $processedRows,
+            'successful_rows' => $successfulRows,
+            'failed_rows' => $failedRows,
+            'errors' => $errors
+        ];
+    }
+
+    /**
      * Get import statistics for a user
      *
      * @param User $user
@@ -308,7 +419,7 @@ class ImportService
         $directory = "imports/user_{$user->id}/" . now()->format('Y/m');
         $filename = $this->generateUniqueFilename($file->getClientOriginalName());
 
-        return $file->storeAs($directory, $filename, 'local');
+        return $file->storeAs($directory, $filename);
     }
 
     /**
