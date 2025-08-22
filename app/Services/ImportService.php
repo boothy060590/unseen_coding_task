@@ -52,6 +52,7 @@ class ImportService
      * @param User $user
      * @param UploadedFile $file
      * @param array<string, mixed> $options
+     * @param array<string, mixed> $options
      * @return Import
      * @throws ValidationException
      */
@@ -62,6 +63,14 @@ class ImportService
 
         // Store file
         $filePath = $this->storeImportFile($file, $user);
+        
+        // Log the file path for debugging
+        \Log::info('Import file stored', [
+            'user_id' => $user->id,
+            'original_filename' => $file->getClientOriginalName(),
+            'stored_path' => $filePath,
+            'disk' => config('filesystems.default')
+        ]);
 
         // Create import record
         $importData = [
@@ -418,8 +427,14 @@ class ImportService
     {
         $directory = "imports/user_{$user->id}/" . now()->format('Y/m');
         $filename = $this->generateUniqueFilename($file->getClientOriginalName());
-
-        return $file->storeAs($directory, $filename);
+        
+        // Use the injected storage instance
+        $filePath = $directory . '/' . $filename;
+        
+        // Store the file content using the storage instance
+        $this->storage->put($filePath, file_get_contents($file->getRealPath()));
+        
+        return $filePath;
     }
 
     /**

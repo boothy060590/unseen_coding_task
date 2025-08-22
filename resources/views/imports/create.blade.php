@@ -1,41 +1,73 @@
 @extends('layouts.app')
 
-@section('content')
-<div class="container mx-auto px-6 py-8">
-    <div class="max-w-2xl mx-auto">
-        <div class="flex items-center mb-6">
-            <a href="{{ route('imports.index') }}" class="text-blue-600 hover:text-blue-800 mr-4">← Back</a>
-            <h1 class="text-2xl font-bold text-gray-900">Import Customers</h1>
-        </div>
+@section('title', 'Import Customers')
 
-        <div class="bg-white shadow-sm rounded-lg p-6">
+@section('header')
+    <div class="flex justify-between items-center">
+        <h1 class="text-3xl font-bold text-gray-900">Import Customers</h1>
+        <a href="{{ route('imports.index') }}" class="btn btn-secondary">
+            ← Back to Imports
+        </a>
+    </div>
+@endsection
+
+@section('content')
+    <div class="max-w-2xl mx-auto">
+        <!-- Validation Errors -->
+        @if ($errors->any())
+            <div class="alert alert-error mb-6">
+                <div class="font-medium">Please fix the following errors:</div>
+                <ul class="mt-2 list-disc list-inside text-sm">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        <div class="dashboard-card">
             <form action="{{ route('imports.store') }}" method="POST" enctype="multipart/form-data">
                 @csrf
 
-                <div class="mb-6">
-                    <label for="file" class="block text-sm font-medium text-gray-700 mb-2">
-                        CSV File
-                    </label>
+                <div class="form-group">
+                    <label for="file" class="form-label">CSV File</label>
                     <input type="file" 
                            name="file" 
                            id="file" 
-                           accept=".csv"
-                           class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 @error('file') border-red-500 @enderror">
+                           accept=".csv,.txt"
+                           class="form-input @error('file') border-red-500 @enderror">
                     @error('file')
                         <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                     @enderror
-                    <p class="text-sm text-gray-500 mt-1">Upload a CSV file with customer data. Maximum file size: 10MB</p>
+                    <p class="text-sm text-gray-500 mt-1">Upload a CSV or TXT file with customer data. Maximum file size: 10MB</p>
                 </div>
 
-                <div class="mb-6">
+                <div class="form-group">
                     <label class="flex items-center">
                         <input type="checkbox" name="has_headers" value="1" checked class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
                         <span class="ml-2 text-sm text-gray-700">File has headers</span>
                     </label>
                 </div>
 
-                <div class="mb-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-3">Expected CSV Format</h3>
+                <div class="form-group">
+                    <label for="delimiter" class="form-label">Delimiter</label>
+                    <select name="delimiter" id="delimiter" class="form-select">
+                        <option value="," selected>Comma (,)</option>
+                        <option value=";">Semicolon (;)</option>
+                        <option value="|">Pipe (|)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="encoding" class="form-label">File Encoding</label>
+                    <select name="encoding" id="encoding" class="form-select">
+                        <option value="UTF-8" selected>UTF-8</option>
+                        <option value="ISO-8859-1">ISO-8859-1</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <h3 class="dashboard-card-title mb-3">Expected CSV Format</h3>
                     <div class="bg-gray-50 p-4 rounded-md">
                         <p class="text-sm text-gray-700 mb-2">Your CSV should contain the following columns:</p>
                         <ul class="text-sm text-gray-600 space-y-1">
@@ -52,17 +84,17 @@
                 </div>
 
                 <div class="flex justify-end space-x-4">
-                    <a href="{{ route('imports.index') }}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    <a href="{{ route('imports.index') }}" class="btn btn-secondary">
                         Cancel
                     </a>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700">
+                    <button type="submit" class="btn btn-primary">
                         Start Import
                     </button>
                 </div>
             </form>
         </div>
 
-        <div class="mt-6 bg-blue-50 border border-blue-200 rounded-md p-4">
+        <div class="mt-6 alert alert-info">
             <div class="flex">
                 <div class="flex-shrink-0">
                     <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
@@ -81,5 +113,4 @@
             </div>
         </div>
     </div>
-</div>
 @endsection

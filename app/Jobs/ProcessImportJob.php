@@ -50,12 +50,6 @@ class ProcessImportJob implements ShouldQueue
      */
     public function handle(ImportService $importService, CustomerService $customerService): void
     {
-        Log::info('Starting import processing', [
-            'import_id' => $this->import->id,
-            'user_id' => $this->user->id,
-            'filename' => $this->import->original_filename
-        ]);
-
         try {
             // Mark import as processing
             $this->import = $importService->startProcessing($this->user, $this->import);
@@ -65,22 +59,7 @@ class ProcessImportJob implements ShouldQueue
 
             // Mark import as completed
             $importService->completeImport($this->user, $this->import, $result);
-
-            Log::info('Import processing completed successfully', [
-                'import_id' => $this->import->id,
-                'processed_rows' => $result['processed_rows'],
-                'successful_rows' => $result['successful_rows'],
-                'failed_rows' => $result['failed_rows']
-            ]);
-
         } catch (Exception $e) {
-            Log::error('Import processing failed', [
-                'import_id' => $this->import->id,
-                'user_id' => $this->user->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             // Mark import as failed
             $importService->failImport($this->user, $this->import, $e->getMessage());
 
@@ -93,13 +72,6 @@ class ProcessImportJob implements ShouldQueue
      */
     public function failed(?Exception $exception): void
     {
-        Log::error('Import job failed permanently', [
-            'import_id' => $this->import->id,
-            'user_id' => $this->user->id,
-            'attempts' => $this->attempts(),
-            'error' => $exception?->getMessage()
-        ]);
-
         // Try to mark import as failed if not already done
         try {
             app(ImportService::class)->failImport($this->user, $this->import,

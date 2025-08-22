@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class ImportCustomersRequest extends FormRequest
 {
@@ -24,7 +25,7 @@ class ImportCustomersRequest extends FormRequest
         return [
             'file' => 'required|file|mimes:csv,txt|max:10240', // 10MB max
             'has_headers' => 'boolean',
-            'delimiter' => 'nullable|string|in:,;|',
+            'delimiter' => ['nullable', 'string', Rule::in([',', ';', '|'])],
             'encoding' => 'nullable|string|in:UTF-8,ISO-8859-1',
         ];
     }

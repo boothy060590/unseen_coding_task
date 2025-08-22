@@ -35,6 +35,7 @@ return new class extends Migration
 
             // Ensure unique slug per user
             $table->unique(['user_id', 'slug']);
+            $table->unique(['user_id', 'email']);
         });
     }
 
