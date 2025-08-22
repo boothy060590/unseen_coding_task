@@ -25,10 +25,12 @@ class ExportController extends Controller
     {
         $user = auth()->user();
         
+        $exports = $this->exportService->getPaginatedExports($user, 15);
         $recentExports = $this->exportService->getRecentExports($user, 10);
-        $exportStats = $this->exportService->getExportStatistics($user);
+        $downloadableExports = $this->exportService->getDownloadableExports($user);
+        $exportStats = $this->exportService->getExportStatistics($user, $downloadableExports, $recentExports);
 
-        return view('exports.index', compact('recentExports', 'exportStats'));
+        return view('exports.index', compact('exports', 'recentExports', 'downloadableExports', 'exportStats'));
     }
 
     /**

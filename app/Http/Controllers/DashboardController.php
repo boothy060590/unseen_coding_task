@@ -6,6 +6,7 @@ use App\Services\CustomerService;
 use App\Services\SearchService;
 use App\Services\ImportService;
 use App\Services\ExportService;
+use App\Services\AuditService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -15,7 +16,8 @@ class DashboardController extends Controller
         private CustomerService $customerService,
         private SearchService $searchService,
         private ImportService $importService,
-        private ExportService $exportService
+        private ExportService $exportService,
+        private AuditService $auditService
     ) {}
 
     /**
@@ -35,20 +37,29 @@ class DashboardController extends Controller
         // Get recent imports/exports
         $recentImports = $this->importService->getRecentImports($user, 5);
         $recentExports = $this->exportService->getRecentExports($user, 5);
+        
+        // Get recent activity
+        $recentActivity = $this->auditService->getRecentUserActivities($user, 10);
+        
+        // Get top organizations (placeholder - method needs to be implemented)
+        $topOrganizations = collect();
 
         // Get search statistics if filters are applied
         $searchStats = !empty($filters) 
             ? $this->searchService->getSearchStatistics($user, $filters)
             : null;
 
-        return view('dashboard.index', compact(
-            'dashboardData',
-            'statistics', 
-            'recentImports',
-            'recentExports',
-            'searchStats',
-            'filters'
-        ));
+        return view('dashboard', [
+            'customers' => $dashboardData['customers'],
+            'recentCustomers' => $dashboardData['recent_customers'],
+            'statistics' => $statistics, 
+            'recentImports' => $recentImports,
+            'recentExports' => $recentExports,
+            'recentActivity' => $recentActivity,
+            'topOrganizations' => $topOrganizations,
+            'searchStats' => $searchStats,
+            'filters' => $filters
+        ]);
     }
 
     /**
@@ -62,7 +73,17 @@ class DashboardController extends Controller
         $results = $this->searchService->searchCustomers($user, $filters, 25);
         $searchStats = $this->searchService->getSearchStatistics($user, $filters);
 
-        return view('dashboard.search', compact('results', 'searchStats', 'filters'));
+        return view('dashboard', [
+            'customers' => $results,
+            'recentCustomers' => collect(),
+            'statistics' => $searchStats,
+            'recentImports' => collect(),
+            'recentExports' => collect(),
+            'recentActivity' => collect(),
+            'topOrganizations' => collect(),
+            'searchStats' => $searchStats,
+            'filters' => $filters
+        ]);
     }
 
     /**
@@ -93,6 +114,16 @@ class DashboardController extends Controller
         $statistics = $this->customerService->getCustomerStatistics($user);
         $recentCustomers = $this->customerService->searchCustomers($user, '', 10);
         
-        return view('dashboard.overview', compact('statistics', 'recentCustomers'));
+        return view('dashboard', [
+            'customers' => $recentCustomers,
+            'recentCustomers' => $recentCustomers,
+            'statistics' => $statistics,
+            'recentImports' => collect(),
+            'recentExports' => collect(),
+            'recentActivity' => collect(),
+            'topOrganizations' => collect(),
+            'searchStats' => null,
+            'filters' => []
+        ]);
     }
 }

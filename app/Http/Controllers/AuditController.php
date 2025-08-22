@@ -26,22 +26,19 @@ class AuditController extends Controller
         $user = auth()->user();
         $filters = $request->only(['event', 'customer_id', 'date_from', 'date_to']);
 
-        // Get recent activities
-        $recentActivities = $this->auditService->getRecentUserActivities($user, 20);
+        // Get activities based on filters
+        if (!empty($filters)) {
+            $activities = $this->getFilteredActivities($user, $filters);
+        } else {
+            $activities = $this->auditService->getRecentUserActivities($user, 20);
+        }
 
         // Get audit statistics
         $statistics = $this->auditService->getAuditStatistics($user);
 
-        // Get filtered activities if filters are applied
-        $filteredActivities = null;
-        if (!empty($filters)) {
-            $filteredActivities = $this->getFilteredActivities($user, $filters);
-        }
-
         return view('audit.index', compact(
-            'recentActivities',
+            'activities',
             'statistics',
-            'filteredActivities',
             'filters'
         ));
     }
@@ -53,10 +50,12 @@ class AuditController extends Controller
     {
         $user = auth()->user();
 
-        $auditTrail = $this->auditService->getCustomerAuditTrail($user, $customer, 50);
+        $activities = $this->auditService->getCustomerAuditTrail($user, $customer, 50);
         $customerStats = $this->auditService->getCustomerActivitySummary($user, $customer);
+        $statistics = $customerStats; // Use customer stats as statistics
+        $filters = ['customer' => $customer]; // Add customer context
 
-        return view('audit.customer', compact('customer', 'auditTrail', 'customerStats'));
+        return view('audit.index', compact('customer', 'activities', 'statistics', 'filters'));
     }
 
     /**
@@ -70,7 +69,7 @@ class AuditController extends Controller
         $activities = $this->getFilteredActivities($user, $filters);
         $statistics = $this->auditService->getFilteredStatistics($user, $filters);
 
-        return view('audit.search', compact('activities', 'statistics', 'filters'));
+        return view('audit.index', compact('activities', 'statistics', 'filters'));
     }
 
     /**
@@ -99,7 +98,11 @@ class AuditController extends Controller
             abort(404, 'Activity not found');
         }
 
-        return view('audit.activity', compact('activity'));
+        $activities = collect([$activity]); // Wrap single activity in collection
+        $statistics = []; // Empty stats for single activity view
+        $filters = ['activity_id' => $activityId];
+
+        return view('audit.index', compact('activities', 'statistics', 'filters'));
     }
 
     /**

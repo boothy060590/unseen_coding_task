@@ -49,7 +49,8 @@ class AuthController extends Controller
             'password' => $request->password,
         ]);
 
-        event(new Registered($user));
+        // Send email verification notification
+        $user->sendEmailVerificationNotification();
 
         Auth::login($user);
 
@@ -105,13 +106,4 @@ class AuthController extends Controller
         return redirect()->route('login')->with('success', 'You have been logged out.');
     }
 
-    /**
-     * Show the dashboard for authenticated users
-     *
-     * @return View
-     */
-    public function dashboard(): View
-    {
-        return view('dashboard');
-    }
 }

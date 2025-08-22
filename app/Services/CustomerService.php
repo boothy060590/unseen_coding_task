@@ -8,6 +8,7 @@ use App\Events\Customer\CustomerDeleted;
 use App\Events\Customer\CustomerUpdated;
 use App\Models\Customer;
 use App\Models\User;
+use App\Services\CacheService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Validation\ValidationException;
 
@@ -22,7 +23,8 @@ class CustomerService
      * @param CustomerRepositoryInterface $customerRepository
      */
     public function __construct(
-        private CustomerRepositoryInterface $customerRepository
+        private CustomerRepositoryInterface $customerRepository,
+        private CacheService $cacheService
     ) {}
 
     /**
@@ -68,6 +70,9 @@ class CustomerService
 
         $customer = $this->customerRepository->createForUser($user, $cleanData);
 
+        // Ensure cache is cleared for immediate UI updates
+        $this->cacheService->clearUserCache($user->id);
+
         // Dispatch event for auditing and other side effects
         CustomerCreated::dispatch($customer, $user, ['source' => 'service']);
 
@@ -104,6 +109,9 @@ class CustomerService
 
         $updatedCustomer = $this->customerRepository->updateForUser($user, $customer, $cleanData);
 
+        // Ensure cache is cleared for immediate UI updates
+        $this->cacheService->clearUserCache($user->id);
+
         // Dispatch event for auditing and other side effects
         CustomerUpdated::dispatch($updatedCustomer, $user, $originalData, ['source' => 'service']);
 
@@ -125,7 +133,12 @@ class CustomerService
         // Dispatch event before deletion (while customer data is still available)
         CustomerDeleted::dispatch($customer, $user, ['source' => 'service']);
 
-        return $this->customerRepository->deleteForUser($user, $customer);
+        $result = $this->customerRepository->deleteForUser($user, $customer);
+
+        // Ensure cache is cleared for immediate UI updates
+        $this->cacheService->clearUserCache($user->id);
+
+        return $result;
     }
 
     /**

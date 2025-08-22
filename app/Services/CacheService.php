@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
+use Illuminate\Cache\RedisStore;
+use Illuminate\Support\Facades\Redis;
 
 /**
  * Service for managing cache with improved invalidation strategies
@@ -140,7 +142,6 @@ class CacheService
      *
      * @param int $userId
      * @return void
-     * @throws \ReflectionException
      */
     public function clearUserCache(int $userId): void
     {
@@ -153,7 +154,6 @@ class CacheService
      * @param int $userId
      * @param int $customerId
      * @return void
-     * @throws \ReflectionException
      */
     public function clearCustomerCache(int $userId, int $customerId): void
     {
@@ -168,7 +168,6 @@ class CacheService
      *
      * @param int $userId
      * @return void
-     * @throws \ReflectionException
      */
     public function clearImportCache(int $userId): void
     {
@@ -182,7 +181,6 @@ class CacheService
      *
      * @param int $userId
      * @return void
-     * @throws \ReflectionException
      */
     public function clearExportCache(int $userId): void
     {
@@ -196,11 +194,20 @@ class CacheService
      *
      * @param string $operation
      * @return void
-     * @throws \ReflectionException
      */
     public function clearOperationCache(string $operation): void
     {
         $this->flushByKeys(["operation:{$operation}"]);
+    }
+    
+    /**
+     * Force clear all cache - use for debugging cache issues
+     *
+     * @return void
+     */
+    public function clearAllCache(): void
+    {
+        $this->cache->flush();
     }
 
 
@@ -228,31 +235,67 @@ class CacheService
      *
      * @param array<string> $patterns
      * @return void
-     * @throws \ReflectionException
      */
     public function flushByKeys(array $patterns): void
     {
         $store = $this->cache->getStore();
-        $reflection = new \ReflectionClass($store);
-        $storageProperty = $reflection->getProperty('storage');
-        $storageProperty->setAccessible(true);
-        $storage = $storageProperty->getValue($store);
-
-        $keysToDelete = [];
-
-        foreach (array_keys($storage) as $cacheKey) {
-            // Check if this cache key matches any of our key patterns
-            foreach ($patterns as $pattern) {
-                if (str_contains($cacheKey, "cache:") && str_contains($cacheKey, $pattern)) {
-                    $keysToDelete[] = $cacheKey;
-                    break;
-                }
-            }
+        
+        if ($store instanceof RedisStore) {
+            // For Redis, use SCAN to find and delete matching keys
+            $this->flushRedisKeys($patterns);
+        } else {
+            // For other stores (like array or file), we can't easily pattern match
+            // so we'll just clear all cache - not ideal but safe
+            $this->cache->flush();
         }
-
-        // Delete all matching keys
-        foreach ($keysToDelete as $key) {
-            $this->cache->forget($key);
+    }
+    
+    /**
+     * Flush Redis keys using pattern matching
+     *
+     * @param array<string> $patterns
+     * @return void
+     */
+    private function flushRedisKeys(array $patterns): void
+    {
+        $redis = Redis::connection();
+        
+        foreach ($patterns as $pattern) {
+            // Use Redis SCAN to find keys matching the pattern
+            // Look for our cache key format: "cache:*{pattern}*"
+            $searchPattern = "cache:*{$pattern}*";
+            $cursor = '0';
+            $deletedCount = 0;
+            
+            do {
+                $result = $redis->scan($cursor, ['match' => $searchPattern, 'count' => 100]);
+                $cursor = $result[0];
+                $keys = $result[1];
+                
+                if (!empty($keys)) {
+                    // Delete the found keys
+                    $redis->del($keys);
+                    $deletedCount += count($keys);
+                }
+            } while ($cursor !== '0');
+            
+            // Also try with Laravel's cache prefix if it exists
+            $cachePrefix = config('cache.prefix', '');
+            if ($cachePrefix) {
+                $prefixedPattern = "{$cachePrefix}:cache:*{$pattern}*";
+                $cursor = '0';
+                
+                do {
+                    $result = $redis->scan($cursor, ['match' => $prefixedPattern, 'count' => 100]);
+                    $cursor = $result[0];
+                    $keys = $result[1];
+                    
+                    if (!empty($keys)) {
+                        $redis->del($keys);
+                        $deletedCount += count($keys);
+                    }
+                } while ($cursor !== '0');
+            }
         }
     }
 }

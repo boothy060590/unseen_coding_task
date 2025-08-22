@@ -79,7 +79,7 @@ class ExportService
 
         $exportData = [
             'filename' => $filename,
-            'type' => empty($filters) ? 'all' : 'filtered',
+            'type' => 'customers',
             'format' => $format,
             'status' => 'pending',
             'filters' => $filters,
@@ -240,6 +240,17 @@ class ExportService
     public function getRecentExports(User $user, int $limit = 10): Collection
     {
         return $this->exportRepository->getRecentForUser($user, $limit);
+    }
+
+    /**
+     * Get downloadable exports for a user
+     *
+     * @param User $user
+     * @return Collection<int, Export>
+     */
+    public function getDownloadableExports(User $user): Collection
+    {
+        return $this->exportRepository->getDownloadableForUser($user);
     }
 
     /**
