@@ -20,7 +20,7 @@
         @auth
             <!-- Navigation -->
             <nav class="bg-white shadow-sm border-b border-gray-200">
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="container-responsive">
                     <div class="flex justify-between h-16">
                         <div class="flex">
                             <!-- Logo -->
@@ -33,23 +33,23 @@
                             <!-- Navigation Links -->
                             <div class="hidden space-x-8 sm:-my-px sm:ml-10 sm:flex">
                                 <a href="{{ route('dashboard') }}" 
-                                   class="nav-link {{ request()->routeIs('dashboard*') ? 'active' : '' }}">
+                                   class="nav-link {{ request()->routeIs('dashboard*') ? 'nav-link-active' : '' }}">
                                     Dashboard
                                 </a>
                                 <a href="{{ route('customers.index') }}" 
-                                   class="nav-link {{ request()->routeIs('customers*') ? 'active' : '' }}">
+                                   class="nav-link {{ request()->routeIs('customers*') ? 'nav-link-active' : '' }}">
                                     Customers
                                 </a>
                                 <a href="{{ route('imports.index') }}" 
-                                   class="nav-link {{ request()->routeIs('imports*') ? 'active' : '' }}">
+                                   class="nav-link {{ request()->routeIs('imports*') ? 'nav-link-active' : '' }}">
                                     Imports
                                 </a>
                                 <a href="{{ route('exports.index') }}" 
-                                   class="nav-link {{ request()->routeIs('exports*') ? 'active' : '' }}">
+                                   class="nav-link {{ request()->routeIs('exports*') ? 'nav-link-active' : '' }}">
                                     Exports
                                 </a>
                                 <a href="{{ route('audit.index') }}" 
-                                   class="nav-link {{ request()->routeIs('audit*') ? 'active' : '' }}">
+                                   class="nav-link {{ request()->routeIs('audit*') ? 'nav-link-active' : '' }}">
                                     Audit Trail
                                 </a>
                             </div>
@@ -59,7 +59,7 @@
                         <div class="hidden sm:flex sm:items-center sm:ml-6">
                             <div class="ml-3 relative">
                                 <div class="relative">
-                                    <button type="button" class="flex text-sm bg-white rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" id="user-menu-button" aria-expanded="false" aria-haspopup="true">
+                                    <button type="button" class="flex text-sm bg-white rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" id="user-menu-button" aria-expanded="false" aria-haspopup="true">
                                         <span class="sr-only">Open user menu</span>
                                         <div class="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
                                             <span class="text-sm font-medium text-gray-700">
@@ -89,7 +89,7 @@
 
                         <!-- Mobile menu button -->
                         <div class="-mr-2 flex items-center sm:hidden">
-                            <button type="button" class="bg-white inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500" aria-controls="mobile-menu" aria-expanded="false" id="mobile-menu-button">
+                            <button type="button" class="bg-white inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500" aria-controls="mobile-menu" aria-expanded="false" id="mobile-menu-button">
                                 <span class="sr-only">Open main menu</span>
                                 <svg class="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -129,7 +129,7 @@
         <!-- Page Header -->
         @hasSection('header')
             <header class="bg-white shadow">
-                <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <div class="container-responsive py-6">
                     @yield('header')
                 </div>
             </header>
@@ -137,8 +137,8 @@
 
         <!-- Flash Messages -->
         @if(session('success'))
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
-                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
+            <div class="container-responsive mt-4">
+                <div class="alert alert-success" role="alert">
                     <span class="block sm:inline">{{ session('success') }}</span>
                     <span class="absolute top-0 bottom-0 right-0 px-4 py-3">
                         <svg class="fill-current h-6 w-6 text-green-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" onclick="this.parentElement.parentElement.style.display='none'">
@@ -150,8 +150,8 @@
         @endif
 
         @if(session('error'))
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
-                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+            <div class="container-responsive mt-4">
+                <div class="alert alert-error" role="alert">
                     <span class="block sm:inline">{{ session('error') }}</span>
                     <span class="absolute top-0 bottom-0 right-0 px-4 py-3">
                         <svg class="fill-current h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" onclick="this.parentElement.parentElement.style.display='none'">
@@ -164,7 +164,7 @@
 
         <!-- Page Content -->
         <main class="py-6">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="container-responsive">
                 @yield('content')
             </div>
         </main>
@@ -192,17 +192,11 @@
     </script>
 
     <style>
-        .nav-link {
-            @apply inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 transition duration-150 ease-in-out;
-        }
-        .nav-link.active {
-            @apply border-indigo-500 text-gray-900;
-        }
         .mobile-nav-link {
             @apply block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border-gray-300 transition duration-150 ease-in-out;
         }
         .mobile-nav-link.active {
-            @apply bg-indigo-50 border-indigo-500 text-indigo-700;
+            @apply bg-blue-50 border-blue-500 text-blue-700;
         }
     </style>
 </body>
