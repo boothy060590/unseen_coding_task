@@ -19,25 +19,65 @@
 @endsection
 
 @section('content')
-    <!-- Search Bar -->
+    <!-- Search and Filter Bar -->
     <div class="mb-8">
-        <form action="{{ route('dashboard.search') }}" method="GET" class="max-w-2xl">
-            <div class="search-container">
-                <div class="search-icon">
-                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                    </svg>
+        <!-- Search Container -->
+        <div class="mb-6">
+            <form action="{{ route('dashboard.search') }}" method="GET" class="max-w-2xl">
+                <div class="search-container">
+                    <div class="search-icon">
+                        <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </div>
+                    <input type="text" name="search"
+                           value="{{ request('search') }}"
+                           placeholder="Search customers by name, email, or organization..."
+                           class="search-input">
+                    <button type="submit"
+                            class="btn btn-primary absolute right-0 top-0 h-full rounded-l-none">
+                        Search
+                    </button>
                 </div>
-                <input type="text" name="search"
-                       value="{{ request('search') }}"
-                       placeholder="Search customers by name, email, or organization..."
-                       class="search-input">
-                <button type="submit"
-                        class="btn btn-primary absolute right-0 top-0 h-full rounded-l-none">
-                    Search
-                </button>
+            </form>
+        </div>
+
+        <!-- Quick Filters -->
+        <div class="filter-container">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="form-label text-xs">Organization</label>
+                    <input type="text" 
+                           data-filter="organization"
+                           placeholder="Filter by organization..."
+                           value="{{ request('organization') }}"
+                           class="filter-input">
+                </div>
+                <div>
+                    <label class="form-label text-xs">Job Title</label>
+                    <input type="text" 
+                           data-filter="jobTitle"
+                           placeholder="Filter by job title..."
+                           value="{{ request('job_title') }}"
+                           class="filter-input">
+                </div>
+                <div>
+                    <label class="form-label text-xs">Email Domain</label>
+                    <input type="text" 
+                           data-filter="email"
+                           placeholder="Filter by email domain..."
+                           value="{{ request('email_domain') }}"
+                           class="filter-input">
+                </div>
+                <div>
+                    <label class="form-label text-xs">Name</label>
+                    <input type="text" 
+                           data-filter="fullName"
+                           placeholder="Filter by name..."
+                           class="filter-input">
+                </div>
             </div>
-        </form>
+        </div>
     </div>
 
     <!-- Statistics Cards -->
@@ -112,9 +152,14 @@
                 </div>
 
                 @if($customers && $customers->count() > 0)
-                    <div class="space-y-3">
+                    <div class="space-y-3" data-filterable>
                         @foreach($customers as $customer)
-                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors" 
+                                 data-filterable-row 
+                                 data-organization="{{ strtolower($customer->organization ?? '') }}"
+                                 data-job-title="{{ strtolower($customer->job_title ?? '') }}"
+                                 data-email="{{ strtolower(substr(strrchr($customer->email, '@'), 1)) }}"
+                                 data-full-name="{{ strtolower($customer->full_name) }}">
                                 <div class="flex items-center space-x-3">
                                     <div class="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
                                         <span class="text-sm font-medium text-gray-700">
@@ -127,6 +172,9 @@
                                         @if($customer->organization)
                                             <p class="text-xs text-gray-400">{{ $customer->organization }}</p>
                                         @endif
+                                        @if($customer->job_title)
+                                            <p class="text-xs text-gray-400">{{ $customer->job_title }}</p>
+                                        @endif
                                     </div>
                                 </div>
                                 <div class="text-right">
@@ -136,6 +184,9 @@
                                 </div>
                             </div>
                         @endforeach
+                    </div>
+                    <div class="mt-4 text-sm text-gray-500 text-center" data-results-count>
+                        Showing {{ $customers->count() }} customers
                     </div>
                 @else
                     <div class="text-center py-8">

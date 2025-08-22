@@ -92,14 +92,13 @@ class DashboardController extends Controller
     public function suggestions(Request $request)
     {
         $user = auth()->user();
-        $field = $request->get('field');
         $query = $request->get('query');
 
-        if (!$field || !$query || strlen($query) < 2) {
+        if (!$query || strlen($query) < 2) {
             return response()->json([]);
         }
 
-        $suggestions = $this->searchService->getSearchSuggestions($user, $field, $query, 10);
+        $suggestions = $this->searchService->getComprehensiveSuggestions($user, $query, 8);
 
         return response()->json($suggestions);
     }

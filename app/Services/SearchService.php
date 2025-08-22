@@ -320,4 +320,214 @@ class SearchService
         
         return $cleaned ?? '';
     }
+
+    /**
+     * Get comprehensive search suggestions from multiple sources
+     *
+     * @param User $user
+     * @param string $query
+     * @param int $limit
+     * @return array<array{text: string, value: string, type: string, subtitle?: string}>
+     */
+    public function getComprehensiveSuggestions(User $user, string $query, int $limit = 8): array
+    {
+        if (strlen(trim($query)) < 2) {
+            return [];
+        }
+
+        $cacheInfo = $this->cacheService->getUserCacheInfo($user->id, 'suggestions', $query, $limit);
+        
+        return $this->cacheService->rememberWithTags(
+            $cacheInfo['key'],
+            $cacheInfo['tags'],
+            300, // 5 minutes cache
+            fn() => $this->buildSuggestions($user, $query, $limit)
+        );
+    }
+
+    /**
+     * Build suggestions from multiple sources
+     *
+     * @param User $user
+     * @param string $query
+     * @param int $limit
+     * @return array<array{text: string, value: string, type: string, subtitle?: string}>
+     */
+    private function buildSuggestions(User $user, string $query, int $limit): array
+    {
+        $suggestions = [];
+        $sanitizedQuery = $this->sanitizeSearchQuery($query);
+
+        // 1. Customer name suggestions
+        $customerSuggestions = $this->getCustomerNameSuggestions($user, $sanitizedQuery, 5);
+        $suggestions = array_merge($suggestions, $customerSuggestions);
+
+        // 2. Email suggestions (if query contains @ or looks like email)
+        if (strpos($sanitizedQuery, '@') !== false || filter_var($sanitizedQuery, FILTER_VALIDATE_EMAIL)) {
+            $emailSuggestions = $this->getEmailSuggestions($user, $sanitizedQuery, 3);
+            $suggestions = array_merge($suggestions, $emailSuggestions);
+        }
+
+        // 3. Organization suggestions
+        $organizationSuggestions = $this->getOrganizationSuggestions($user, $sanitizedQuery, 3);
+        $suggestions = array_merge($suggestions, $organizationSuggestions);
+
+        // 4. Phone number suggestions (if query looks like a phone number)
+        if (preg_match('/[\d\-\+\(\)\s]+/', $sanitizedQuery) && strlen(preg_replace('/\D/', '', $sanitizedQuery)) >= 3) {
+            $phoneSuggestions = $this->getPhoneSuggestions($user, $sanitizedQuery, 2);
+            $suggestions = array_merge($suggestions, $phoneSuggestions);
+        }
+
+        // Remove duplicates, prioritize, and limit results
+        return $this->processSuggestions($suggestions, $limit);
+    }
+
+    /**
+     * Get customer name suggestions
+     *
+     * @param User $user
+     * @param string $query
+     * @param int $limit
+     * @return array<array{text: string, value: string, type: string, subtitle: string}>
+     */
+    private function getCustomerNameSuggestions(User $user, string $query, int $limit): array
+    {
+        $customers = $this->searchCustomersByText($user, $query, [], $limit);
+        $suggestions = [];
+
+        foreach ($customers as $customer) {
+            $suggestions[] = [
+                'text' => $customer->full_name,
+                'value' => $customer->full_name,
+                'type' => 'customer',
+                'subtitle' => $customer->email,
+                'priority' => 100
+            ];
+        }
+
+        return $suggestions;
+    }
+
+    /**
+     * Get email suggestions
+     *
+     * @param User $user
+     * @param string $query
+     * @param int $limit
+     * @return array<array{text: string, value: string, type: string, subtitle: string}>
+     */
+    private function getEmailSuggestions(User $user, string $query, int $limit): array
+    {
+        $customers = $this->customerRepository->getAllForUser($user, [
+            'search' => $query,
+            'limit' => $limit * 2
+        ]);
+
+        $suggestions = [];
+        foreach ($customers as $customer) {
+            if (stripos($customer->email, $query) !== false) {
+                $suggestions[] = [
+                    'text' => $customer->email,
+                    'value' => $customer->email,
+                    'type' => 'email',
+                    'subtitle' => $customer->full_name,
+                    'priority' => 90
+                ];
+            }
+        }
+
+        return array_slice($suggestions, 0, $limit);
+    }
+
+    /**
+     * Get organization suggestions
+     *
+     * @param User $user
+     * @param string $query
+     * @param int $limit
+     * @return array<array{text: string, value: string, type: string, subtitle: string}>
+     */
+    private function getOrganizationSuggestions(User $user, string $query, int $limit): array
+    {
+        $customers = $this->customerRepository->getAllForUser($user, [
+            'search' => $query,
+            'limit' => $limit * 3
+        ]);
+
+        $organizations = $customers
+            ->whereNotNull('organization')
+            ->filter(fn($customer) => stripos($customer->organization, $query) !== false)
+            ->pluck('organization')
+            ->unique()
+            ->take($limit);
+
+        $suggestions = [];
+        foreach ($organizations as $organization) {
+            $suggestions[] = [
+                'text' => $organization,
+                'value' => $organization,
+                'type' => 'organization',
+                'subtitle' => 'Organization',
+                'priority' => 80
+            ];
+        }
+
+        return $suggestions;
+    }
+
+    /**
+     * Get phone number suggestions
+     *
+     * @param User $user
+     * @param string $query
+     * @param int $limit
+     * @return array<array{text: string, value: string, type: string, subtitle: string}>
+     */
+    private function getPhoneSuggestions(User $user, string $query, int $limit): array
+    {
+        $customers = $this->customerRepository->getAllForUser($user, [
+            'search' => $query,
+            'limit' => $limit * 2
+        ]);
+
+        $suggestions = [];
+        foreach ($customers as $customer) {
+            if ($customer->phone && stripos($customer->phone, preg_replace('/\D/', '', $query)) !== false) {
+                $suggestions[] = [
+                    'text' => $customer->phone,
+                    'value' => $customer->phone,
+                    'type' => 'phone',
+                    'subtitle' => $customer->full_name,
+                    'priority' => 70
+                ];
+            }
+        }
+
+        return array_slice($suggestions, 0, $limit);
+    }
+
+    /**
+     * Process and prioritize suggestions
+     *
+     * @param array<array{text: string, value: string, type: string, subtitle?: string, priority?: int}> $suggestions
+     * @param int $limit
+     * @return array<array{text: string, value: string, type: string, subtitle?: string}>
+     */
+    private function processSuggestions(array $suggestions, int $limit): array
+    {
+        // Remove duplicates based on value
+        $uniqueSuggestions = collect($suggestions)
+            ->unique('value')
+            ->sortByDesc('priority')
+            ->take($limit)
+            ->map(function ($suggestion) {
+                // Remove priority from final output
+                unset($suggestion['priority']);
+                return $suggestion;
+            })
+            ->values()
+            ->toArray();
+
+        return $uniqueSuggestions;
+    }
 }

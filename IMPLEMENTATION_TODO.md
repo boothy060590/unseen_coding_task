@@ -134,7 +134,6 @@
 - [ ] Create SendAuditToS3 listener
 
 ### Queue Configuration
-- [ ] Configure SQS connection for production
 - [ ] Set up job batching for large imports
 - [ ] Implement failed job handling
 - [ ] Add job progress tracking
