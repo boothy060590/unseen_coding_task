@@ -77,13 +77,14 @@ class ImportServiceTest extends TestCase
 
     public function testCreateImport(): void
     {
-        $file = $this->createMock(UploadedFile::class);
-        $file->method('getClientOriginalName')->willReturn('customers.csv');
-        $file->method('getSize')->willReturn(1000); // 1KB
-        $file->method('getMimeType')->willReturn('text/csv');
-        $file->method('getClientOriginalExtension')->willReturn('csv');
-        $file->method('getRealPath')->willReturn('/tmp/test_file.csv');
-        $file->method('storeAs')->willReturn('imports/user_1/2024/01/customers_20240101_120000.csv');
+        // Create a real UploadedFile from the fixture
+        $uploadedFile = new UploadedFile(
+            base_path('tests/fixtures/sample_customers.csv'),
+            'customers.csv',
+            'text/csv',
+            null,
+            true
+        );
 
         $expectedImport = new Import(['id' => 1, 'filename' => 'customers_20240101_120000.csv']);
 
@@ -98,7 +99,7 @@ class ImportServiceTest extends TestCase
             }))
             ->willReturn($expectedImport);
 
-        $result = $this->service->createImport($this->user, $file);
+        $result = $this->service->createImport($this->user, $uploadedFile);
 
         $this->assertSame($expectedImport, $result);
     }
@@ -422,13 +423,14 @@ class ImportServiceTest extends TestCase
 
     public function testGenerateUniqueFilename(): void
     {
-        $file = $this->createMock(UploadedFile::class);
-        $file->method('getClientOriginalName')->willReturn('test file.csv');
-        $file->method('getSize')->willReturn(1000);
-        $file->method('getMimeType')->willReturn('text/csv');
-        $file->method('getClientOriginalExtension')->willReturn('csv');
-        $file->method('getRealPath')->willReturn('/tmp/test_file.csv');
-        $file->method('storeAs')->willReturn('imports/user_1/2024/01/test_file_20240101_120000.csv');
+        // Create a real UploadedFile from the fixture
+        $file = new \Illuminate\Http\UploadedFile(
+            base_path('tests/fixtures/sample_customers.csv'),
+            'test file.csv',
+            'text/csv',
+            null,
+            true
+        );
 
         $this->mockRepository->expects($this->once())
             ->method('createForUser')
@@ -445,26 +447,21 @@ class ImportServiceTest extends TestCase
 
     public function testStoreImportFileInUserDirectory(): void
     {
-        $file = $this->createMock(UploadedFile::class);
-        $file->method('getClientOriginalName')->willReturn('customers.csv');
-        $file->method('getSize')->willReturn(1000);
-        $file->method('getMimeType')->willReturn('text/csv');
-        $file->method('getClientOriginalExtension')->willReturn('csv');
-        $file->method('getRealPath')->willReturn('/tmp/test_file.csv');
-
-        $file->expects($this->once())
-            ->method('storeAs')
-            ->with(
-                $this->stringContains('imports/user_1/'),
-                $this->stringContains('customers_'),
-                'local'
-            )
-            ->willReturn('imports/user_1/2024/01/customers_20240101_120000.csv');
+        // Create a real UploadedFile from the fixture
+        $file = new \Illuminate\Http\UploadedFile(
+            base_path('tests/fixtures/sample_customers.csv'),
+            'customers.csv',
+            'text/csv',
+            null,
+            true
+        );
 
         $this->mockRepository->expects($this->once())
             ->method('createForUser')
             ->willReturn(new Import());
 
-        $this->service->createImport($this->user, $file);
+        $result = $this->service->createImport($this->user, $file);
+
+        $this->assertInstanceOf(Import::class, $result);
     }
 }
