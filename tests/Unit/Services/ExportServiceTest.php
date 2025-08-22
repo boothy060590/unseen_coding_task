@@ -99,10 +99,13 @@ class ExportServiceTest extends TestCase
             ->method('createForUser')
             ->with($this->user, $this->callback(function ($data) use ($format) {
                 return $data['format'] === $format &&
-                       $data['type'] === 'filtered' &&
+                       $data['type'] === 'customers' &&
+                       $data['status'] === 'pending' &&
                        $data['total_records'] === 2 &&
                        str_contains($data['filename'], 'customers_export_Acme') &&
-                       str_ends_with($data['filename'], '.csv');
+                       str_ends_with($data['filename'], '.csv') &&
+                       isset($data['expires_at']) &&
+                       $data['expires_at'] instanceof \Illuminate\Support\Carbon;
             }))
             ->willReturn($expectedExport);
 

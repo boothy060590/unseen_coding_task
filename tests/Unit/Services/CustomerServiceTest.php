@@ -9,6 +9,7 @@ use App\Events\Customer\CustomerUpdated;
 use App\Models\Customer;
 use App\Models\User;
 use App\Services\CustomerService;
+use App\Services\CacheService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Validation\ValidationException;
@@ -21,6 +22,7 @@ class CustomerServiceTest extends TestCase
 {
     private CustomerService $service;
     private CustomerRepositoryInterface&MockObject $mockRepository;
+    private CacheService&MockObject $mockCacheService;
     private User $user;
 
     protected function setUp(): void
@@ -28,7 +30,8 @@ class CustomerServiceTest extends TestCase
         parent::setUp();
         
         $this->mockRepository = $this->createMock(CustomerRepositoryInterface::class);
-        $this->service = new CustomerService($this->mockRepository);
+        $this->mockCacheService = $this->createMock(CacheService::class);
+        $this->service = new CustomerService($this->mockRepository, $this->mockCacheService);
         $this->user = new User(['first_name' => 'Test', 'last_name' => 'User', 'email' => 'test@example.com']);
         $this->user->setAttribute('id', 1);
         
@@ -90,6 +93,11 @@ class CustomerServiceTest extends TestCase
                        $data['phone'] === '123-456-7890';
             }))
             ->willReturn($expectedCustomer);
+
+        // Mock cache service clearUserCache call
+        $this->mockCacheService->expects($this->once())
+            ->method('clearUserCache')
+            ->with($this->user->id);
 
         $result = $this->service->createCustomer($this->user, $customerData);
 
@@ -156,6 +164,11 @@ class CustomerServiceTest extends TestCase
             }))
             ->willReturn($updatedCustomer);
 
+        // Mock cache service clearUserCache call
+        $this->mockCacheService->expects($this->once())
+            ->method('clearUserCache')
+            ->with($this->user->id);
+
         $result = $this->service->updateCustomer($this->user, $customer, $updateData);
 
         $this->assertSame($updatedCustomer, $result);
@@ -198,6 +211,11 @@ class CustomerServiceTest extends TestCase
             ->method('deleteForUser')
             ->with($this->user, $customer)
             ->willReturn(true);
+
+        // Mock cache service clearUserCache call
+        $this->mockCacheService->expects($this->once())
+            ->method('clearUserCache')
+            ->with($this->user->id);
 
         $result = $this->service->deleteCustomer($this->user, $customer);
 
