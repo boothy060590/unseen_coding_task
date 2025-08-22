@@ -28,13 +28,13 @@ class CustomerServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         $this->mockRepository = $this->createMock(CustomerRepositoryInterface::class);
         $this->mockCacheService = $this->createMock(CacheService::class);
         $this->service = new CustomerService($this->mockRepository, $this->mockCacheService);
         $this->user = new User(['first_name' => 'Test', 'last_name' => 'User', 'email' => 'test@example.com']);
         $this->user->setAttribute('id', 1);
-        
+
         Event::fake();
     }
 
@@ -245,7 +245,7 @@ class CustomerServiceTest extends TestCase
     public function testSearchCustomersWithShortQueryReturnsEmpty(): void
     {
         $query = 'J'; // Too short
-        
+
         $result = $this->service->searchCustomers($this->user, $query);
 
         $this->assertInstanceOf(Collection::class, $result);
@@ -264,7 +264,7 @@ class CustomerServiceTest extends TestCase
         $customer1->created_at = now()->subDays(5);
         $customer2 = new Customer(['id' => 2, 'user_id' => 1]);
         $customer2->created_at = now()->subDays(15);
-        
+
         $recentCustomers = new Collection([$customer1, $customer2]);
 
         $this->mockRepository->expects($this->once())
@@ -287,7 +287,7 @@ class CustomerServiceTest extends TestCase
         $this->assertSame(3, $result['total_customers']);
         $this->assertSame(2, $result['monthly_growth']); // 2 customers in last month (5 and 15 days ago)
         $this->assertSame(1, $result['weekly_growth']); // 1 customer in last week (5 days ago)
-        $this->assertArrayHasKey('top_organizations', $result);
+        $this->assertArrayHasKey('organisation_count', $result);
     }
 
     public function testGetCustomerBySlug(): void

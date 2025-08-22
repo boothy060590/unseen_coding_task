@@ -180,18 +180,16 @@ class CustomerService
         $weeklyGrowth = $recentCustomers->where('created_at', '>=', now()->subWeek())->count();
 
         // Top organizations
-        $organizationStats = $this->customerRepository->getAllForUser($user)
+        $organizationCount = $this->customerRepository->getAllForUser($user)
             ->whereNotNull('organization')
-            ->groupBy('organization')
-            ->map(fn($customers) => $customers->count())
-            ->sortDesc()
-            ->take(5);
+            ->unique('organization')
+            ->count();
 
         return [
             'total_customers' => $totalCustomers,
             'monthly_growth' => $monthlyGrowth,
             'weekly_growth' => $weeklyGrowth,
-            'top_organizations' => $organizationStats,
+            'organisation_count' => $organizationCount,
         ];
     }
 

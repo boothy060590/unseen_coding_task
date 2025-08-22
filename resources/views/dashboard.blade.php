@@ -6,11 +6,11 @@
     <div class="flex justify-between items-center">
         <h1 class="text-3xl font-bold text-gray-900">Dashboard</h1>
         <div class="flex space-x-3">
-            <a href="{{ route('customers.create') }}" 
+            <a href="{{ route('customers.create') }}"
                class="btn btn-primary">
                 Add Customer
             </a>
-            <a href="{{ route('imports.create') }}" 
+            <a href="{{ route('imports.create') }}"
                class="btn btn-success">
                 Import Data
             </a>
@@ -28,11 +28,11 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                     </svg>
                 </div>
-                <input type="text" name="search" 
+                <input type="text" name="search"
                        value="{{ request('search') }}"
-                       placeholder="Search customers by name, email, or organization..." 
+                       placeholder="Search customers by name, email, or organization..."
                        class="search-input">
-                <button type="submit" 
+                <button type="submit"
                         class="btn btn-primary absolute right-0 top-0 h-full rounded-l-none">
                     Search
                 </button>
@@ -67,7 +67,7 @@
                 </div>
             </div>
             <div class="dashboard-card-title">Added This Month</div>
-            <div class="dashboard-card-value">{{ number_format($statistics['customers_this_month'] ?? 0) }}</div>
+            <div class="dashboard-card-value">{{ number_format($statistics['monthly_growth'] ?? 0) }}</div>
         </div>
 
         <div class="dashboard-card">
@@ -81,7 +81,7 @@
                 </div>
             </div>
             <div class="dashboard-card-title">Organizations</div>
-            <div class="dashboard-card-value">{{ number_format($statistics['unique_organizations'] ?? 0) }}</div>
+            <div class="dashboard-card-value">{{ number_format($statistics['organisation_count'] ?? 0) }}</div>
         </div>
 
         <div class="dashboard-card">
@@ -94,8 +94,8 @@
                     </div>
                 </div>
             </div>
-            <div class="dashboard-card-title">Avg. per Week</div>
-            <div class="dashboard-card-value">{{ number_format($statistics['avg_customers_per_week'] ?? 0, 1) }}</div>
+            <div class="dashboard-card-title">Added this Week</div>
+            <div class="dashboard-card-value">{{ number_format($statistics['weekly_growth'] ?? 0, 1) }}</div>
         </div>
     </div>
 
@@ -131,7 +131,7 @@
                                 </div>
                                 <div class="text-right">
                                     <p class="text-xs text-gray-500">{{ $customer->created_at->diffForHumans() }}</p>
-                                    <a href="{{ route('customers.show', $customer->slug) }}" 
+                                    <a href="{{ route('customers.show', $customer->slug) }}"
                                        class="text-blue-600 hover:text-blue-500 text-sm">View</a>
                                 </div>
                             </div>
@@ -160,19 +160,19 @@
             <div class="dashboard-card">
                 <h3 class="dashboard-card-title mb-4">Quick Actions</h3>
                 <div class="space-y-3">
-                    <a href="{{ route('customers.create') }}" 
+                    <a href="{{ route('customers.create') }}"
                        class="btn btn-primary w-full">
                         Add New Customer
                     </a>
-                    <a href="{{ route('imports.create') }}" 
+                    <a href="{{ route('imports.create') }}"
                        class="btn btn-success w-full">
                         Import Customers
                     </a>
-                    <a href="{{ route('exports.create') }}" 
+                    <a href="{{ route('exports.create') }}"
                        class="btn btn-secondary w-full">
                         Export Data
                     </a>
-                    <a href="{{ route('audit.index') }}" 
+                    <a href="{{ route('audit.index') }}"
                        class="btn btn-secondary w-full">
                         View Audit Trail
                     </a>
