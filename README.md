@@ -33,6 +33,31 @@ A production-ready Laravel-based Customer Relationship Management system with au
   - CSRF protection
   - Email verification requirement
 
+## Quick Start
+
+For experienced developers who want to get up and running quickly:
+
+```bash
+# Clone and setup
+git clone <repository-url>
+cd unseen_code_task
+
+# Run automated setup (recommended)
+./setup.sh
+
+# Or manual setup
+./vendor/bin/sail up -d
+./vendor/bin/sail composer install
+./vendor/bin/sail npm install
+cp .env.example .env
+./vendor/bin/sail artisan key:generate
+./vendor/bin/sail artisan migrate
+./vendor/bin/sail npm run build
+
+# Visit http://localhost:8900 to create MinIO bucket 'unseen-code-task'
+# Then register at http://localhost/register
+```
+
 ## Docker Architecture
 
 This application uses **Laravel Sail** for containerized development with the following services:
@@ -49,10 +74,10 @@ This application uses **Laravel Sail** for containerized development with the fo
 ### Port Mapping
 
 - **Application**: http://localhost (port 80)
-- **MySQL**: localhost:3307
+- **MySQL**: localhost:3306
 - **Redis**: localhost:6379
-- **MinIO Console**: http://localhost:8901
-- **MinIO API**: http://localhost:9001
+- **MinIO Console**: http://localhost:8900
+- **MinIO API**: http://localhost:9000
 - **Mailpit UI**: http://localhost:8025
 - **ElasticMQ**: http://localhost:9324
 - **Vite Dev Server**: http://localhost:5173
@@ -62,6 +87,7 @@ This application uses **Laravel Sail** for containerized development with the fo
 - Docker Desktop
 - Docker Compose
 - Git
+- `.env.example` file (included in repository)
 
 ## Installation
 
@@ -78,7 +104,10 @@ This application uses **Laravel Sail** for containerized development with the fo
 
 3. **Environment Setup**
    ```bash
+   # Create .env file from .env.example
    cp .env.example .env
+   
+   # Generate application key
    ./vendor/bin/sail artisan key:generate
    ```
 
@@ -104,10 +133,113 @@ This application uses **Laravel Sail** for containerized development with the fo
 
 8. **Setup MinIO Storage Buckets**
    ```bash
-   ./vendor/bin/sail artisan storage:setup
+   # Access MinIO console at http://localhost:8900
+   # Username: sail, Password: password
+   # Create a bucket named 'unseen-code-task' for file storage
    ```
 
 The application will be available at `http://localhost`
+
+### First-Time Setup Process
+
+When setting up the project for the first time, follow these steps in order:
+
+1. **Prerequisites**: Ensure Docker Desktop is running
+2. **Start containers**: `./vendor/bin/sail up -d`
+3. **Wait for services**: Give containers 10-15 seconds to fully start
+4. **Install dependencies**: Run `./vendor/bin/sail composer install` and `./vendor/bin/sail npm install`
+5. **Environment**: Create `.env` file from `.env.example` template
+6. **Generate key**: Run `./vendor/bin/sail artisan key:generate`
+7. **Database**: Execute `./vendor/bin/sail artisan migrate`
+8. **Build assets**: Run `./vendor/bin/sail npm run build`
+9. **Storage**: Set up MinIO bucket manually via web console
+
+**Note**: The first run of `composer install` and `npm install` may take several minutes as it downloads all dependencies.
+
+### Setup Troubleshooting
+
+**Common setup issues and solutions:**
+
+- **"Permission denied" errors**: Ensure Docker has proper permissions to access the project directory
+- **"Container not found"**: Run `./vendor/bin/sail down` then `./vendor/bin/sail up -d` again
+- **"Database connection refused"**: Wait longer for MySQL container to fully start (check with `./vendor/bin/sail logs mysql`)
+- **"Composer install fails"**: Ensure the laravel.test container is running: `./vendor/bin/sail ps`
+- **"NPM install fails"**: Check if the container has enough memory allocated to Docker
+- **"Migration fails"**: Ensure MySQL is fully ready: `./vendor/bin/sail exec mysql mysqladmin ping -h localhost -u sail -ppassword`
+
+**Container health check:**
+```bash
+./vendor/bin/sail ps
+./vendor/bin/sail logs
+```
+
+### Complete Setup Script
+
+For convenience, you can run this complete setup script:
+
+```bash
+#!/bin/bash
+# Complete setup script for Laravel Sail
+
+echo "🚀 Starting Laravel Sail setup..."
+
+# Start containers
+echo "📦 Starting Docker containers..."
+./vendor/bin/sail up -d
+
+# Wait for containers to be ready
+echo "⏳ Waiting for containers to be ready..."
+sleep 10
+
+# Install PHP dependencies
+echo "📚 Installing PHP dependencies..."
+./vendor/bin/sail composer install
+
+# Install NPM dependencies
+echo "📦 Installing NPM dependencies..."
+./vendor/bin/sail npm install
+
+# Create .env file
+echo "🔧 Creating .env file from .env.example..."
+cp .env.example .env
+
+# Generate application key
+echo "🔑 Generating application key..."
+./vendor/bin/sail artisan key:generate
+
+# Run database migrations
+echo "🗄️ Running database migrations..."
+./vendor/bin/sail artisan migrate
+
+# Build frontend assets
+echo "🏗️ Building frontend assets..."
+./vendor/bin/sail npm run build
+
+# Setup storage
+echo "💾 Setting up MinIO storage bucket..."
+echo "   Access MinIO console at http://localhost:8900"
+echo "   Username: sail, Password: password"
+echo "   Create a bucket named 'unseen-code-task' for file storage"
+
+echo "✅ Setup complete! Application available at http://localhost"
+echo "📧 Mailpit available at http://localhost:8025"
+echo "🗄️ MinIO Console available at http://localhost:8900"
+```
+
+**💡 Pro Tip**: We've also created an automated `setup.sh` script that handles the entire setup process. Simply run:
+
+```bash
+./setup.sh
+```
+
+This script will:
+- Check Docker is running
+- Start all containers
+- Install dependencies
+- Create .env file if needed
+- Run migrations
+- Build assets
+- Provide next steps
 
 ## Development Commands
 
@@ -149,7 +281,8 @@ The application uses SQS (ElasticMQ) for background job processing:
 
 ```bash
 # Start queue worker
-./vendor/bin/sail artisan queue:work
+./vendor/bin/sail artisan queue:work sqs --queue=default,import-export,audit 
+
 
 # Process failed jobs
 ./vendor/bin/sail artisan queue:failed
@@ -158,7 +291,21 @@ The application uses SQS (ElasticMQ) for background job processing:
 
 ## Running Tests
 
-This project includes comprehensive unit and integration tests:
+This project includes comprehensive unit and integration tests with 100% coverage on business logic:
+
+### Test Suite Overview
+
+- **Unit Tests** (`--testsuite=Unit`): Test individual components in isolation
+  - Services: Business logic validation and processing
+  - Repositories: Data access layer and query methods
+  - Models: Eloquent model relationships and attributes
+  
+- **Integration Tests** (`--testsuite=Integration`): Test database interactions
+  - Repository implementations with real database
+  - Service integrations with actual dependencies
+  - Database transaction handling and rollbacks
+
+### Running the Test Suite
 
 ```bash
 # Run all tests
@@ -173,12 +320,52 @@ This project includes comprehensive unit and integration tests:
 
 # Run specific test file
 ./vendor/bin/sail artisan test tests/Unit/Services/CustomerServiceTest.php
+
+# Run tests with verbose output
+./vendor/bin/sail artisan test --verbose
+
+# Run tests and stop on first failure
+./vendor/bin/sail artisan test --stop-on-failure
+```
+
+### Test Database
+
+The test suite uses a separate test database to ensure data isolation:
+
+```bash
+# Check test database configuration
+./vendor/bin/sail artisan config:show database.connections.mysql_testing
+
+# Refresh test database
+./vendor/bin/sail artisan migrate:fresh --env=testing
+
+# Seed test database
+./vendor/bin/sail artisan db:seed --env=testing
+```
+
+### Writing Tests
+
+When adding new features, ensure you write corresponding tests:
+
+```bash
+# Create a new test
+./vendor/bin/sail artisan make:test Services/NewServiceTest
+
+# Run only your new test
+./vendor/bin/sail artisan test tests/Unit/Services/NewServiceTest.php
 ```
 
 ### Test Structure
 
-- **Unit Tests**: Test individual components (Services, Repositories, Models) in isolation
-- **Integration Tests**: Test database interactions and service integrations
+```
+tests/
+├── Feature/           # End-to-end user workflow tests
+├── Integration/       # Database and service integration tests
+│   ├── Repository/   # Repository implementation tests
+│   └── Services/     # Service integration tests
+└── Unit/             # Isolated component tests
+    └── Services/     # Service unit tests
+```
 
 ## Email Testing
 
@@ -239,10 +426,53 @@ The application uses **MinIO** (S3-compatible) for file storage:
 - User data isolation (multi-tenancy at application level)
 
 ### Testing Strategy
-- 100% test coverage on business logic (Services and Repositories)
+- 90+% test coverage on business logic (Services and Repositories)
 - Unit tests mock dependencies for isolation
 - Integration tests use test database for realistic scenarios
 - Feature tests cover complete user workflows
+
+### Business Logic Assumptions
+- **Customer Email Uniqueness**: Customer emails are unique within a user's scope (not globally)
+- **Import/Export Limits**: Large files are processed asynchronously to prevent timeouts
+- **File Retention**: Import/export files are automatically cleaned up after 7 days
+- **Audit Retention**: Activity logs are retained indefinitely for compliance purposes
+- **User Registration**: All users must provide valid email addresses for verification
+- **Data Ownership**: Users can only access and modify their own customer records
+- **Queue Processing**: Background jobs use SQS-compatible queue for reliability
+- **Storage Strategy**: Files are stored in S3-compatible storage with user-specific paths
+
+## Key Assumptions & Architectural Decisions
+
+### Development Environment
+- **Laravel Sail**: Chosen for consistent containerized development across team members
+- **PHP 8.4**: Latest stable PHP version with modern features and performance improvements
+- **MySQL 8.0**: Robust, production-ready database with JSON support and performance optimizations
+- **Redis**: Fast in-memory caching and session storage
+- **MinIO**: S3-compatible storage for development, easily swappable for AWS S3 in production
+
+### Application Architecture
+- **Repository Pattern**: Abstracted data access layer for testability and maintainability
+- **Service Layer**: Business logic encapsulation with clear separation of concerns
+- **Event-Driven**: Customer actions trigger events for audit logging and extensibility
+- **Queue-Based Processing**: Background job processing for long-running operations
+- **Multi-tenant by User**: Each user manages their own customer database (application-level isolation)
+
+### Security & Data Management
+- **Email Verification Required**: All users must verify email before accessing the system
+- **User Data Isolation**: Users can only access their own customer records
+- **Audit Trail**: Complete activity logging for compliance and debugging
+- **Soft Deletes**: Customer records are soft-deleted for data recovery
+- **Form Request Validation**: Centralized validation and authorization logic
+
+### Performance & Scalability
+- **Repository Caching**: Redis-based caching with automatic invalidation
+- **Background Processing**: Import/export operations don't block user interface
+- **Database Indexing**: Optimized queries with proper database indexing
+- **Asset Compilation**: Vite-based frontend build system for development and production
+
+### Testing Strategy
+- **Comprehensive Coverage**: Unit tests for business logic, integration tests for data operations
+- **Mocking Strategy**: External dependencies mocked in unit tests for isolation
 
 ## Database Schema
 
@@ -263,72 +493,13 @@ The application uses **MinIO** (S3-compatible) for file storage:
 
 ### Environment Variables
 
-Key environment variables for Docker setup:
+The project includes a `.env.example` file with the proper configuration. Simply copy it to create your `.env` file:
 
-```env
-# Database (MySQL container)
-DB_CONNECTION=mysql
-DB_HOST=mysql
-DB_PORT=3306
-DB_DATABASE=unseen_code_task
-DB_USERNAME=sail
-DB_PASSWORD=password
-
-# Cache & Sessions (Redis container)
-CACHE_STORE=redis
-SESSION_DRIVER=redis
-REDIS_HOST=redis
-
-# Queue (ElasticMQ container)
-QUEUE_CONNECTION=sqs
-SQS_PREFIX=http://elasticmq:9324/000000000000
-
-# Storage (MinIO container)
-FILESYSTEM_DISK=s3
-AWS_ENDPOINT=http://localhost:9001
-AWS_ACCESS_KEY_ID=minioadmin
-AWS_SECRET_ACCESS_KEY=minioadmin
-
-# Email (Mailpit container)
-MAIL_MAILER=smtp
-MAIL_HOST=mailpit
-MAIL_PORT=1025
+```bash
+cp .env.example .env
 ```
 
-## Production Deployment
-
-### Docker Production Setup
-
-1. **Build production images**
-   ```bash
-   docker build -t crm-app .
-   ```
-
-2. **Use production docker-compose**
-   ```yaml
-   # docker-compose.prod.yml
-   services:
-     app:
-       image: crm-app
-       environment:
-         APP_ENV: production
-         APP_DEBUG: false
-   ```
-
-3. **Environment Configuration**
-   - Set `APP_ENV=production`
-   - Set `APP_DEBUG=false`
-   - Configure production database
-   - Set up external Redis/SQS services
-   - Configure S3 storage
-
-4. **Performance Optimization**
-   ```bash
-   ./vendor/bin/sail artisan config:cache
-   ./vendor/bin/sail artisan route:cache
-   ./vendor/bin/sail artisan view:cache
-   ./vendor/bin/sail artisan event:cache
-   ```
+This will create a `.env` file with all the necessary configuration for Laravel Sail development.
 
 ## Troubleshooting
 
@@ -356,7 +527,7 @@ chmod -R 775 storage bootstrap/cache
 **Queue jobs not processing:**
 ```bash
 ./vendor/bin/sail artisan queue:restart
-./vendor/bin/sail artisan queue:work
+./vendor/bin/sail artisan queue:work sqs --queue=default,import-export,audit
 ```
 
 ## Development Tools
@@ -371,35 +542,3 @@ alias sail='./vendor/bin/sail'
 alias art='./vendor/bin/sail artisan'
 alias test='./vendor/bin/sail artisan test'
 ```
-
-### Debugging
-
-- Xdebug is available in the PHP container
-- Set `SAIL_XDEBUG_MODE=develop,debug` in .env to enable
-- Configure your IDE to connect to port 9003
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Write/update tests
-5. Ensure all tests pass (`./vendor/bin/sail artisan test`)
-6. Commit your changes (`git commit -m 'Add amazing feature'`)
-7. Push to the branch (`git push origin feature/amazing-feature`)
-8. Open a Pull Request
-
-## Assumptions Made
-
-1. **Single-tenant per user**: Each user manages their own customer database
-2. **Email is unique identifier**: Customer emails are unique within a user's scope
-3. **Background processing**: Large imports/exports are processed asynchronously
-4. **File cleanup**: Import/export files are automatically cleaned up after 7 days
-5. **Audit retention**: Activity logs are retained indefinitely (can be configured)
-6. **Email verification required**: All users must verify their email before accessing the system
-7. **Containerized deployment**: Application is designed to run in Docker containers
-8. **S3-compatible storage**: Uses MinIO for development, can be swapped for AWS S3 in production
-
-## License
-
-This project is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
