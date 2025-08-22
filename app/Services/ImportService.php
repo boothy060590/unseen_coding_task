@@ -143,19 +143,25 @@ class ImportService
      *
      * @param User $user
      * @param Import $import
-     * @param array<string, mixed> $finalStats
+     * @param array<string, mixed> $result
      * @return Import
      */
-    public function completeImport(User $user, Import $import, array $finalStats = []): Import
+    public function completeImport(User $user, Import $import, array $result): Import
     {
         $this->validateUserOwnership($user, $import);
 
-        $updateData = array_merge($finalStats, [
+        $updatedImport = $this->importRepository->updateForUser($user, $import, [
             'status' => 'completed',
+            'processed_rows' => $result['processed_rows'],
+            'successful_rows' => $result['successful_rows'],
+            'failed_rows' => $result['failed_rows'],
+            'validation_errors' => $result['errors'] ?? null,
             'completed_at' => now(),
         ]);
 
-        return $this->importRepository->updateForUser($user, $import, $updateData);
+
+
+        return $updatedImport;
     }
 
     /**
@@ -189,11 +195,15 @@ class ImportService
     {
         $this->validateUserOwnership($user, $import);
 
-        return $this->importRepository->updateForUser($user, $import, [
+        $updatedImport = $this->importRepository->updateForUser($user, $import, [
             'status' => 'failed',
             'error_message' => $errorMessage,
             'completed_at' => now(),
         ]);
+
+
+
+        return $updatedImport;
     }
 
     /**
@@ -465,5 +475,18 @@ class ImportService
         if ($import->user_id !== $user->id) {
             throw new \InvalidArgumentException('Import does not belong to the specified user');
         }
+    }
+
+    /**
+     * Clear dashboard cache for a user after import operations
+     *
+     * @param int $userId
+     * @return void
+     */
+    private function clearDashboardCache(int $userId): void
+    {
+        // Get the cache service from the container
+        $cacheService = app(\App\Services\CacheService::class);
+        $cacheService->clearDashboardCache($userId);
     }
 }

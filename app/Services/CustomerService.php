@@ -193,6 +193,8 @@ class CustomerService
         ];
     }
 
+    
+
     /**
      * Get customer by slug for user
      *

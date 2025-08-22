@@ -121,6 +121,8 @@ class CachedCustomerRepository implements CustomerRepositoryInterface
         return $customer;
     }
 
+
+
     /**
      * Update a customer for a specific user
      *
@@ -160,24 +162,20 @@ class CachedCustomerRepository implements CustomerRepositoryInterface
 
     /**
      * Get customer count for a specific user
+     * Bypass cache for dashboard stats to ensure fresh data
      *
      * @param User $user
      * @return int
      */
     public function getCountForUser(User $user): int
     {
-        $cacheInfo = $this->cacheService->getUserCacheInfo($user->id, 'count');
-
-        return $this->cacheService->rememberWithTags(
-            $cacheInfo['key'],
-            $cacheInfo['tags'],
-            $this->config->get('cache.ttl.customers', 3600),
-            fn() => $this->repository->getCountForUser($user)
-        );
+        // Bypass cache for dashboard stats - always return fresh data
+        return $this->repository->getCountForUser($user);
     }
 
     /**
      * Get recent customers for a specific user
+     * Bypass cache for dashboard stats to ensure fresh data
      *
      * @param User $user
      * @param int $limit
@@ -185,13 +183,9 @@ class CachedCustomerRepository implements CustomerRepositoryInterface
      */
     public function getRecentForUser(User $user, int $limit = 10): Collection
     {
-        $cacheInfo = $this->cacheService->getUserCacheInfo($user->id, 'recent', $limit);
-
-        return $this->cacheService->rememberWithTags(
-            $cacheInfo['key'],
-            $cacheInfo['tags'],
-            $this->config->get('cache.ttl.customers', 3600) / 4,
-            fn() => $this->repository->getRecentForUser($user, $limit)
-        );
+        // Bypass cache for dashboard stats - always return fresh data
+        return $this->repository->getRecentForUser($user, $limit);
     }
+
+
 }
