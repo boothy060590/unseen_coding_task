@@ -30,7 +30,7 @@ services:
     mysql:
         image: 'mysql/mysql-server:8.0'
         ports:
-            - '${FORWARD_DB_PORT:-3306}:3306'
+            - '${FORWARD_DB_PORT:-3307}:3306'
         environment:
             MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
             MYSQL_ROOT_HOST: '%'
@@ -98,7 +98,7 @@ services:
     elasticmq:
         image: 'softwaremill/elasticmq-native:1.6.8'
         ports:
-            - '${FORWARD_ELASTICMQ_PORT:-9325}:9324'
+            - '${FORWARD_ELASTICMQ_PORT:-9324}:9324'
             - '${FORWARD_ELASTICMQ_UI_PORT:-9325}:9324'
         volumes:
             - './docker/elasticmq.conf:/opt/elasticmq.conf'

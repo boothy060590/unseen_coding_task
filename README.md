@@ -40,12 +40,12 @@ For experienced developers who want to get up and running quickly:
 ```bash
 # Clone and setup
 git clone git@github.com:boothy060590/unseen_coding_task.git
-cd unseen_code_task
+cd unseen_coding_task
 
 # Run automated setup (recommended)
 ./setup.sh
 
-# Or manual setup
+# Or manual setup (requires PHP 8.4 locally)
 ./vendor/bin/sail up -d
 ./vendor/bin/sail composer install
 ./vendor/bin/sail npm install
@@ -57,6 +57,8 @@ cp .env.example .env
 # Visit http://localhost:8901 to create MinIO bucket 'unseen-code-task'
 # Then register at http://localhost/register
 ```
+
+**Note**: The manual setup requires PHP 8.4 installed locally. The automated `./setup.sh` script works without any local PHP installation.
 
 ## Docker Architecture
 
@@ -89,6 +91,8 @@ This application uses **Laravel Sail** for containerized development with the fo
 - Git
 - `.env.example` file (included in repository)
 
+**Note**: No PHP installation required locally! The setup script automatically handles PHP dependencies using temporary containers.
+
 ## First-Time Setup Process
 
 When setting up the project for the first time, follow these steps in order:
@@ -103,29 +107,31 @@ When setting up the project for the first time, follow these steps in order:
 
 After running the setup, you'll need to:
 
-1. **Create MinIO Bucket**: Visit http://localhost:8901 and create a bucket named 'unseen-code-task'
-2. **Register User**: Go to http://localhost/register to create your first account
-3. **Verify Email**: Check Mailpit at http://localhost:8025 for verification emails
-4. **Start Using**: Once verified, you can log in and start managing customers
+1. **Create MinIO Bucket**: Visit http://localhost:8901 and create a bucket named 'dev-bucket'
+2. **Start Queue Workers**: `./vendor/bin/sail artisan queue:work sqs --queue=default,import-export,audit`
+3. **Register User**: Go to http://localhost/register to create your first account
+4. **Verify Email**: Check Mailpit at http://localhost:8025 for verification emails
+5. **Start Using**: Once verified, you can log in and start managing customers
 
 ### Setup Troubleshooting
 
 **Common setup issues and solutions:**
 
+- **"Vendor directory not found"**: This is expected on first run! The `./setup.sh` script automatically handles this by creating a temporary PHP 8.4 container to run `composer install`, then proceeds with normal setup.
 - **"Permission denied" errors**: Ensure Docker has proper permissions to access the project directory
-- **"Container not found"**: Run `./vendor/bin/sail down` then `./vendor/bin/sail up -d` again
-- **"Database connection refused"**: Wait longer for MySQL container to fully start (check with `./vendor/bin/sail logs mysql`)
-- **"Composer install fails"**: Ensure the laravel.test container is running: `./vendor/bin/sail ps`
+- **"Container not found"**: Run `docker-compose down` then `docker-compose up -d` again
+- **"Database connection refused"**: Wait longer for MySQL container to fully start (check with `docker-compose logs mysql`)
+- **"Composer install fails"**: Ensure the laravel.test container is running: `docker-compose ps`
 - **"NPM install fails"**: Check if the container has enough memory allocated to Docker
-- **"Migration fails"**: Ensure MySQL is fully ready: `./vendor/bin/sail exec mysql mysqladmin ping -h localhost -u sail -ppassword`
+- **"Migration fails"**: Ensure MySQL is fully ready: `docker-compose exec mysql mysqladmin ping -h localhost -u sail -ppassword`
 
 **Container health check:**
 ```bash
-./vendor/bin/sail ps
-./vendor/bin/sail logs
+docker-compose ps
+docker-compose logs
 ```
 
-**💡 Pro Tip**: We've also created an automated `setup.sh` script that handles the entire setup process. Simply run:
+**💡 Pro Tip**: We've also created an automated `setup.sh` script that handles the entire setup process:
 
 ```bash
 ./setup.sh
@@ -133,17 +139,25 @@ After running the setup, you'll need to:
 
 This script will:
 - Check Docker is running
-- Start all containers
-- Install dependencies
+- Start all containers first (solving the vendor directory chicken-and-egg problem)
+- Install dependencies inside the containers
 - Create .env file from .env.example
 - Run migrations
 - Build assets
 - Provide next steps
 
+**Why this approach works**: The script intelligently handles the vendor directory dependency:
+
+1. **If vendor exists**: Proceeds directly with Laravel Sail setup
+2. **If vendor doesn't exist**: Creates a temporary PHP 8.4 container to run `composer install`, then destroys it and proceeds with normal Sail setup
+
+This solves the circular dependency where you need `vendor` to run Sail, but you need Sail to create `vendor`. The temporary container approach is clean, fast, and doesn't require PHP 8.4 installed locally.
+
 ## Development Commands
 
-All commands should be run using Laravel Sail:
+You can use either Laravel Sail (after setup) or direct Docker Compose commands:
 
+### Using Laravel Sail (after `./setup.sh` or manual setup)
 ```bash
 # Start containers
 ./vendor/bin/sail up -d
@@ -172,6 +186,37 @@ All commands should be run using Laravel Sail:
 
 # Build for production
 ./vendor/bin/sail npm run build
+```
+
+### Using Docker Compose directly (always works)
+```bash
+# Start containers
+docker-compose up -d
+
+# Stop containers
+docker-compose down
+
+# View logs
+docker-compose logs
+
+# Access application container shell
+docker-compose exec laravel.test bash
+
+# Run Artisan commands
+docker-compose exec laravel.test php artisan migrate
+docker-compose exec laravel.test php artisan tinker
+
+# Install Composer packages
+docker-compose exec laravel.test composer require package-name
+
+# Install NPM packages
+docker-compose exec laravel.test npm install package-name
+
+# Run development server with hot reload
+docker-compose exec laravel.test npm run dev
+
+# Build for production
+docker-compose exec laravel.test npm run build
 ```
 
 ## Queue Processing
