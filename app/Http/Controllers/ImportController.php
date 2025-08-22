@@ -22,11 +22,11 @@ class ImportController extends Controller
     public function index(): View
     {
         $user = auth()->user();
-        
-        $recentImports = $this->importService->getRecentImports($user, 10);
-        $importStats = $this->importService->getImportStatistics($user);
+        $imports = $this->importService->getPaginatedImports($user);
+        $recentImports = $this->importService->getRecentImports($user);
+        $importStats = $this->importService->getImportStatistics($user, $recentImports);
 
-        return view('imports.index', compact('recentImports', 'importStats'));
+        return view('imports.index', compact('imports', 'recentImports', 'importStats'));
     }
 
     /**
@@ -75,7 +75,7 @@ class ImportController extends Controller
     public function show(Import $import): View
     {
         $import->load('user');
-        
+
         return view('imports.show', compact('import'));
     }
 
